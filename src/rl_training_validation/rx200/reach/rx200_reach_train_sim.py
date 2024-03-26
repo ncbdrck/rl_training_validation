@@ -76,7 +76,6 @@ if __name__ == '__main__':
     model = TD3(env, save_path, log_path, model_pkg_path=pkg_path,
                 config_file_pkg=pkg_path, config_filename=config_file_name)
 
-
     # # Goal-conditioned environments - TD3+HER
     # config_file_name = "td3_goal.yaml"
     # save_path = "/models/sim/td3_goal/"
@@ -85,7 +84,6 @@ if __name__ == '__main__':
     # # create the model
     # model = TD3_GOAL(env, save_path, log_path, model_pkg_path=pkg_path,
     #                  config_file_pkg=pkg_path, config_filename=config_file_name)
-
 
     # train the models
     model.train()

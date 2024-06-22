@@ -9,7 +9,6 @@ import gymnasium as gym
 import numpy as np
 
 # We can use the following import statement if we want to use the multiros package
-from multiros.core import MultirosGym
 from multiros.utils import ros_common
 
 # Models
@@ -37,20 +36,25 @@ if __name__ == '__main__':
     # Clear ROS logs
     # ros_common.clean_ros_logs()
 
-    # --- normal environments
-    env = gym.make('RX200ReacherSim-v0', gazebo_gui=True, ee_action_type=False, seed=10,
-                   delta_action=True, real_time=True, environment_loop_rate=10.0, action_cycle_time=0.800,
+    # # --- normal environments
+    # env = gym.make('RX200ReacherSim-v0', gazebo_gui=False, ee_action_type=False, seed=10,
+    #                delta_action=True, environment_loop_rate=10.0, action_cycle_time=0.800,
+    #                use_smoothing=False)
+
+    # # --- goal environments
+    env = gym.make('RX200ReacherGoalSim-v0', gazebo_gui=False, ee_action_type=False, seed=10,
+                   delta_action=True, environment_loop_rate=10.0, action_cycle_time=0.800,
                    use_smoothing=False)
 
     # Normalize action space
     env = NormalizeActionWrapper(env)
 
     # Normalize observation space
-    env = NormalizeObservationWrapper(env)
-    # env = NormalizeObservationWrapper(env, normalize_goal_spaces=True)  # goal-conditioned environments
+    # env = NormalizeObservationWrapper(env)
+    env = NormalizeObservationWrapper(env, normalize_goal_spaces=True)  # goal-conditioned environments
 
     # Set max steps
-    env = TimeLimitWrapper(env, max_steps=100)
+    env = TimeLimitWrapper(env, max_episode_steps=100)
 
     # reset the environment
     env.reset()
@@ -67,23 +71,23 @@ if __name__ == '__main__':
     # model = SAC(env, save_path, log_path, model_pkg_path=pkg_path,
     #             config_file_pkg=pkg_path, config_filename=config_file_name)
 
-    # Default base environments - TD3
-    config_file_name = "rx200_reacher_td3.yaml"
-    save_path = "/models/sim/td3/"
-    log_path = "/logs/sim/td3/"
-
-    # create the model - TD3
-    model = TD3(env, save_path, log_path, model_pkg_path=pkg_path,
-                config_file_pkg=pkg_path, config_filename=config_file_name)
-
-    # # Goal-conditioned environments - TD3+HER
-    # config_file_name = "td3_goal.yaml"
-    # save_path = "/models/sim/td3_goal/"
-    # log_path = "/logs/sim/td3_goal/"
+    # # Default base environments - TD3
+    # config_file_name = "rx200_reacher_td3.yaml"
+    # save_path = "/models/sim/td3/"
+    # log_path = "/logs/sim/td3/"
     #
-    # # create the model
-    # model = TD3_GOAL(env, save_path, log_path, model_pkg_path=pkg_path,
-    #                  config_file_pkg=pkg_path, config_filename=config_file_name)
+    # # create the model - TD3
+    # model = TD3(env, save_path, log_path, model_pkg_path=pkg_path,
+    #             config_file_pkg=pkg_path, config_filename=config_file_name)
+
+    # Goal-conditioned environments - TD3+HER
+    config_file_name = "rx200_reacher_td3_goal.yaml"
+    save_path = "/models/sim/td3_goal/"
+    log_path = "/logs/sim/td3_goal/"
+
+    # create the model
+    model = TD3_GOAL(env, save_path, log_path, model_pkg_path=pkg_path,
+                     config_file_pkg=pkg_path, config_filename=config_file_name)
 
     # train the models
     model.train()

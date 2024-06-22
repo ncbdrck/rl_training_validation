@@ -12,14 +12,14 @@
 
   # Load model params
   load_model: False
-  model_name: trained_model_real_time_mar26
+  model_name: trained_model_normal_mar08
 
   # Logging parameters
   log_folder: TD3_model_real_time_mar29_s10_el10_ac800ms
   log_interval: 1 # The number of episodes between logs
   reset_num_timesteps: False # If true, will reset the number of timesteps to 0 every training 
 
-  # Use custom policy - Only MlpPolicy is supported (Only used when a new model is created)
+  # Use custom policy
   use_custom_policy: False
   policy_params:
     net_arch: [400, 300] # List of hidden layer sizes
@@ -29,9 +29,18 @@
 
   # UseAction noise
   use_action_noise: True # For now only Gaussian noise is supported
+  action_noise_type: normal # normal or ornstein
   action_noise:
     mean: 0.0
     sigma: 0.01
+
+  # HER parameters
+  use_HER: True
+  her_params:
+    n_sampled_goal: 4
+    goal_selection_strategy: future # future, final or episode
+    online_sampling: True
+    max_episode_length: 100
 
   # TD3 parameters
   td3_params:

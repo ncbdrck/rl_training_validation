@@ -1,6 +1,6 @@
 from copy import deepcopy
 import gymnasium as gym
-from typing import Optional, Union
+from typing import Optional, Union, List
 from gymnasium import spaces
 import numpy as np
 
@@ -8,6 +8,7 @@ from multiros.wrappers.normalize_action_wrapper import NormalizeActionWrapper
 from multiros.wrappers.normalize_obs_wrapper import NormalizeObservationWrapper
 from multiros.wrappers.time_limit_wrapper import TimeLimitWrapper
 
+import uniros as uniros_gym
 
 class MultiTaskEnv(gym.Env):
     """
@@ -17,8 +18,8 @@ class MultiTaskEnv(gym.Env):
     - Not tested with other environments
     """
 
-    def __init__(self, env_list: list[str], env_args_dict: Optional[dict] = None,
-                 wrapper_list: Optional[list] = None, wrapper_args_dict: Optional[dict] = None):
+    def __init__(self, env_list: List[str], env_args_dict: Optional[dict] = None,
+                 wrapper_list: Optional[List[str]] = None, wrapper_args_dict: Optional[dict] = None):
         """
         Args:
             env_list: list of environment names - must be registered in gym
@@ -37,7 +38,7 @@ class MultiTaskEnv(gym.Env):
         # Create the environments
         self.env_list = []
         for env_name in env_list:
-            env = gym.make(env_name, **env_args_dict.get(env_name, {}))
+            env = uniros_gym.make(env_name, **env_args_dict.get(env_name, {}))
             self.env_list.append(env)
 
         # Apply wrappers

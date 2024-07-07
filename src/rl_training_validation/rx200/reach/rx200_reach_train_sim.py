@@ -25,13 +25,13 @@ from multiros.wrappers.time_limit_wrapper import TimeLimitWrapper
 import rl_environments
 
 """
-Environments are registered inside the main __init__.py of the reactorx200_ros_reacher package
+Environments are registered inside the main __init__.py of the rl_environments package
 - RX200ReacherSim-v0  # RX200 Reacher Multiros Default Environment
 """
 
 if __name__ == '__main__':
     # Kill all processes related to previous runs
-    ros_common.kill_all_ros_and_gazebo()
+    # ros_common.kill_all_ros_and_gazebo()
 
     # Clear ROS logs
     # ros_common.clean_ros_logs()
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     pkg_path = "rl_training_validation"
 
     # # Default base environments - SAC
-    # config_file_name = "sac.yaml"
+    # config_file_name = "rx200_reacher_sac.yaml"
     # save_path = "/models/sim/sac/"
     # log_path = "/logs/sim/sac/"
 

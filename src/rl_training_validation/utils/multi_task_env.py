@@ -37,13 +37,12 @@ class MultiTaskEnv(gym.Env):
         # Create the environments
         self.env_list = []
         for env_name in env_list:
-            env = gym.make(env_name, **env_args_dict[env_name])
+            env = gym.make(env_name, **env_args_dict.get(env_name, {}))
             self.env_list.append(env)
 
         # Apply wrappers
         if wrapper_list is not None:
             for i in range(len(self.env_list)):
-
                 # Get the environment
                 env = self.env_list[i]
 
@@ -52,9 +51,9 @@ class MultiTaskEnv(gym.Env):
                     if wrapper_name == 'NormalizeActionWrapper':
                         env = NormalizeActionWrapper(env)
                     elif wrapper_name == 'NormalizeObservationWrapper':
-                        env = NormalizeObservationWrapper(env, **wrapper_args_dict[wrapper_name])
+                        env = NormalizeObservationWrapper(env, **wrapper_args_dict.get(wrapper_name, {}))
                     elif wrapper_name == 'TimeLimitWrapper':
-                        env = TimeLimitWrapper(env, **wrapper_args_dict[wrapper_name])
+                        env = TimeLimitWrapper(env, **wrapper_args_dict.get(wrapper_name, {}))
                     else:
                         raise ValueError(f"Wrapper {wrapper_name} not implemented")
 
@@ -88,23 +87,23 @@ class MultiTaskEnv(gym.Env):
 
     def reset(self, **kwargs):
         """
-        Reset the old environment and find the next environment to train on.
+        Reset the environment by selecting a new environment and resetting it.
         """
-        # Reset the old environment
+        # Reset the current environment - For ROS-based environments, this is important to stop the current environment
         if self.current_env is not None:
-            self.current_env.reset()  # stop the current environment. we don't need to close it since we may choose it again
+            self.current_env.reset()  # we don't need to close it since we may choose it again
 
         # Randomly select a new environment from the list
         rand_choice = np.random.choice(len(self.env_list))
         self.current_env = self.env_list[rand_choice]
 
         # Reset the new environment
-        obs, _ = self.current_env.reset(**kwargs)
+        obs, info = self.current_env.reset(**kwargs)
 
         # Pad the observation to match the maximum observation space dimension
         padded_obs = self._pad_obs(obs)
 
-        return padded_obs
+        return padded_obs, info
 
     def close(self):
         for env in self.env_list:

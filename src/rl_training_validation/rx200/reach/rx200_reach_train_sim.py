@@ -64,8 +64,8 @@ if __name__ == '__main__':
 
     # # Default base environments - SAC
     # config_file_name = "rx200_reacher_sac.yaml"
-    # save_path = "/models/sim/sac/"
-    # log_path = "/logs/sim/sac/"
+    # save_path = "/models/sim/sac/rx200/reach/"
+    # log_path = "/logs/sim/sac/rx200/reach/"
 
     # # create the model - SAC
     # model = SAC(env, save_path, log_path, model_pkg_path=pkg_path,
@@ -73,8 +73,8 @@ if __name__ == '__main__':
 
     # # Default base environments - TD3
     # config_file_name = "rx200_reacher_td3.yaml"
-    # save_path = "/models/sim/td3/"
-    # log_path = "/logs/sim/td3/"
+    # save_path = "/models/sim/td3/rx200/reach/"
+    # log_path = "/logs/sim/td3/rx200/reach/"
     #
     # # create the model - TD3
     # model = TD3(env, save_path, log_path, model_pkg_path=pkg_path,
@@ -82,8 +82,8 @@ if __name__ == '__main__':
 
     # Goal-conditioned environments - TD3+HER
     config_file_name = "rx200_reacher_td3_goal.yaml"
-    save_path = "/models/sim/td3_goal/"
-    log_path = "/logs/sim/td3_goal/"
+    save_path = "/models/sim/td3_goal/rx200/reach/"
+    log_path = "/logs/sim/td3_goal/rx200/reach/"
 
     # create the model
     model = TD3_GOAL(env, save_path, log_path, model_pkg_path=pkg_path,

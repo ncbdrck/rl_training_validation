@@ -65,8 +65,8 @@ if __name__ == '__main__':
 
     # Default base environments - TD3
     config_file_name = "rx200_push_td3.yaml"
-    save_path = "/models/sim/td3/"
-    log_path = "/logs/sim/td3/"
+    save_path = "/models/sim/td3/rx200/push/"
+    log_path = "/logs/sim/td3/rx200/push/"
 
     # create the model - TD3
     model = TD3(env, save_path, log_path, model_pkg_path=pkg_path,
@@ -74,8 +74,8 @@ if __name__ == '__main__':
 
     # # Goal-conditioned environments - TD3+HER
     # config_file_name = "rx200_push_td3_goal.yaml"
-    # save_path = "/models/sim/td3_goal/"
-    # log_path = "/logs/sim/td3_goal/"
+    # save_path = "/models/sim/td3_goal/rx200/push/"
+    # log_path = "/logs/sim/td3_goal/rx200/push/"
     #
     # # create the model
     # model = TD3_GOAL(env, save_path, log_path, model_pkg_path=pkg_path,

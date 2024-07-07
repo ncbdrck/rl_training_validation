@@ -2,12 +2,12 @@
 # Comments start with #
 ---
   # Training 
-  training_steps: 30000      # The number of training steps to perform
+  training_steps: 60000      # The number of training steps to perform
 
   # Save params
   save_freq: 500000
-  save_prefix: td3_model_real_time_mar29_s10_el10_ac800ms
-  trained_model_name: trained_model_real_time_mar29_s10_el10_ac800ms
+  save_prefix: td3_push_real_time_jul07_s10_el10_ac600ms
+  trained_model_name: trained_model_push_real_time_jul07_s10_el10_ac600ms
   save_replay_buffer: True
 
   # Load model params
@@ -15,7 +15,7 @@
   model_name: trained_model_real_time_mar26
 
   # Logging parameters
-  log_folder: TD3_model_real_time_mar29_s10_el10_ac800ms
+  log_folder: TD3_model_push_real_time_jul07_s10_el10_ac600ms
   log_interval: 1 # The number of episodes between logs
   reset_num_timesteps: False # If true, will reset the number of timesteps to 0 every training 
 

@@ -39,12 +39,12 @@ if __name__ == '__main__':
     # # --- normal environments
     # env = gym.make('RX200ReacherSim-v0', gazebo_gui=False, ee_action_type=False, seed=10,
     #                delta_action=True, environment_loop_rate=10.0, action_cycle_time=0.800,
-    #                use_smoothing=False)
+    #                use_smoothing=False, action_speed=0.100)
 
     # # --- goal environments
     env = gym.make('RX200ReacherGoalSim-v0', gazebo_gui=False, ee_action_type=False, seed=10,
                    delta_action=True, environment_loop_rate=10.0, action_cycle_time=0.800,
-                   use_smoothing=False)
+                   use_smoothing=False, action_speed=0.100)
 
     # Normalize action space
     env = NormalizeActionWrapper(env)

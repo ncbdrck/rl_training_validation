@@ -2,7 +2,7 @@
 # Comments start with #
 ---
   # Training 
-  training_steps: 150000      # The number of training steps to perform
+  training_steps: 200000      # The number of training steps to perform
 
   # Save params
   save_freq: 500000

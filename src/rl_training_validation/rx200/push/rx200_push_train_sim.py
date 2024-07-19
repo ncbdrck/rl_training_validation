@@ -39,7 +39,7 @@ if __name__ == '__main__':
     env = gym.make('RX200PushSim-v0', gazebo_gui=False, ee_action_type=False, seed=10,
                    delta_action=True, environment_loop_rate=10.0, action_cycle_time=0.600,
                    use_smoothing=False, action_speed=0.100, load_table = True,
-                   random_goal = False, random_cube_spawn = True)
+                   random_goal=False, random_cube_spawn=True)
 
     # # --- goal environments
     # env = gym.make('RX200PushGoalSim-v0', gazebo_gui=False, ee_action_type=False, seed=10,

@@ -42,12 +42,12 @@ if __name__ == '__main__':
     # --- normal environments
     env = gym.make('RX200ReacherReal-v0', delta_action=True, ee_action_type=False, reward_type="dense",
                    environment_loop_rate=10.0, action_cycle_time=0.500, seed=10, use_smoothing=False,
-                   default_port=True)
+                   default_port=True, log_internal_state=False, action_speed=0.100)
 
     # # --- goal-conditioned environments
-    # env = gym.make('RX200ReacherGoalReal-v0',  delta_action=True, ee_action_type=False, reward_type="sparse",
+    # env = gym.make('RX200ReacherGoalReal-v0', delta_action=True, ee_action_type=False, reward_type="sparse",
     #                    environment_loop_rate=10.0, action_cycle_time=0.500, seed=10, use_smoothing=False,
-    #                    default_port=True)
+    #                    default_port=True, log_internal_state=False, action_speed=0.100)
 
     # Normalize action space
     env = NormalizeActionWrapper(env)

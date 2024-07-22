@@ -40,21 +40,21 @@ if __name__ == '__main__':
     # ros_common.clean_ros_logs()
 
     # --- normal environments
-    env = gym.make('RX200ReacherSim-v0', gazebo_gui=False, ee_action_type=False, seed=10,
+    env = gym.make('RX200ReacherSim-v0', gazebo_gui=True, ee_action_type=False, seed=10,
                    delta_action=True, environment_loop_rate=10.0, action_cycle_time=0.500,
-                   use_smoothing=False, action_speed=0.100, reward_type="dense")
+                   use_smoothing=False, action_speed=0.100, reward_type="dense", log_internal_state=False)
 
     # # --- goal environments
-    # env = gym.make('RX200ReacherGoalSim-v0', gazebo_gui=False, ee_action_type=False, seed=10,
+    # env = gym.make('RX200ReacherGoalSim-v0', gazebo_gui=True, ee_action_type=False, seed=10,
     #                delta_action=True, environment_loop_rate=10.0, action_cycle_time=0.500,
-    #                use_smoothing=False, action_speed=0.100, reward_type="sparse")
+    #                use_smoothing=False, action_speed=0.100, reward_type="sparse", log_internal_state=False)
 
     # Normalize action space
     env = NormalizeActionWrapper(env)
 
     # Normalize observation space
-    env = NormalizeObservationWrapper(env)
-    # env = NormalizeObservationWrapper(env, normalize_goal_spaces=True)  # goal-conditioned environments
+    # env = NormalizeObservationWrapper(env)
+    env = NormalizeObservationWrapper(env, normalize_goal_spaces=True)  # goal-conditioned environments
 
     # Set max steps
     env = TimeLimitWrapper(env, max_episode_steps=100)
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     # model = TD3_GOAL.load_trained_model(model_path=model_path, model_pkg=pkg_path, config_filename=config_file_name,
     #                                    env=env)
 
-    obs = env.reset()
+    obs, _ = env.reset()
     episodes = 1000
     epi_count = 0
     while epi_count < episodes:
@@ -102,7 +102,7 @@ if __name__ == '__main__':
         if term or trunc:
             epi_count += 1
             rospy.logwarn("Episode: " + str(epi_count))
-            obs = env.reset()
+            obs, _ = env.reset()
 
     env.close()
     sys.exit()

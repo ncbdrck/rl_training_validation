@@ -41,12 +41,12 @@ if __name__ == '__main__':
     # --- normal environments
     env = gym.make('RX200ReacherSim-v0', gazebo_gui=False, ee_action_type=False, seed=10,
                    delta_action=True, environment_loop_rate=10.0, action_cycle_time=0.500,
-                   use_smoothing=False, action_speed=0.100, reward_type="dense")
+                   use_smoothing=False, action_speed=0.100, reward_type="dense", log_internal_state=False)
 
     # # --- goal environments
     # env = gym.make('RX200ReacherGoalSim-v0', gazebo_gui=False, ee_action_type=False, seed=10,
     #                delta_action=True, environment_loop_rate=10.0, action_cycle_time=0.500,
-    #                use_smoothing=False, action_speed=0.100, reward_type="sparse")
+    #                use_smoothing=False, action_speed=0.100, reward_type="sparse", log_internal_state=False)
 
     # Normalize action space
     env = NormalizeActionWrapper(env)
@@ -64,14 +64,14 @@ if __name__ == '__main__':
     # path to the package
     pkg_path = "rl_training_validation"
 
-    # Default base environments - SAC
-    config_file_name = "rx200_reacher_sac.yaml"
-    save_path = "/models/sim/sac/rx200/reach/"
-    log_path = "/logs/sim/sac/rx200/reach/"
+    # # Default base environments - SAC
+    # config_file_name = "rx200_reacher_sac.yaml"
+    # save_path = "/models/sim/sac/rx200/reach/"
+    # log_path = "/logs/sim/sac/rx200/reach/"
 
-    # create the model - SAC
-    model = SAC(env, save_path, log_path, model_pkg_path=pkg_path,
-                config_file_pkg=pkg_path, config_filename=config_file_name)
+    # # create the model - SAC
+    # model = SAC(env, save_path, log_path, model_pkg_path=pkg_path,
+    #             config_file_pkg=pkg_path, config_filename=config_file_name)
 
     # # Goal-conditioned environments - SAC+HER
     # config_file_name = "rx200_reacher_sac_goal.yaml"
@@ -82,14 +82,14 @@ if __name__ == '__main__':
     # model = SAC_GOAL(env, save_path, log_path, model_pkg_path=pkg_path,
     #                  config_file_pkg=pkg_path, config_filename=config_file_name)
 
-    # # Default base environments - TD3
-    # config_file_name = "rx200_reacher_td3.yaml"
-    # save_path = "/models/sim/td3/rx200/reach/"
-    # log_path = "/logs/sim/td3/rx200/reach/"
-    #
-    # # create the model - TD3
-    # model = TD3(env, save_path, log_path, model_pkg_path=pkg_path,
-    #             config_file_pkg=pkg_path, config_filename=config_file_name)
+    # Default base environments - TD3
+    config_file_name = "rx200_reacher_td3.yaml"
+    save_path = "/models/sim/td3/rx200/reach/"
+    log_path = "/logs/sim/td3/rx200/reach/"
+
+    # create the model - TD3
+    model = TD3(env, save_path, log_path, model_pkg_path=pkg_path,
+                config_file_pkg=pkg_path, config_filename=config_file_name)
 
     # # Goal-conditioned environments - TD3+HER
     # config_file_name = "rx200_reacher_td3_goal.yaml"

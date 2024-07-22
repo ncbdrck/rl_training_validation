@@ -42,19 +42,19 @@ if __name__ == '__main__':
     # --- normal environments
     env = gym.make('RX200ReacherReal-v0', delta_action=True, ee_action_type=False, reward_type="dense",
                    environment_loop_rate=10.0, action_cycle_time=0.500, seed=10, use_smoothing=False,
-                   default_port=True)
+                   default_port=True, log_internal_state=False)
 
     # # --- goal-conditioned environments
-    # env = gym.make('RX200ReacherGoalReal-v0',  delta_action=True, ee_action_type=False, reward_type="sparse",
+    # env = gym.make('RX200ReacherGoalReal-v0', delta_action=True, ee_action_type=False, reward_type="sparse",
     #                    environment_loop_rate=10.0, action_cycle_time=0.500, seed=10, use_smoothing=False,
-    #                    default_port=True)
+    #                    default_port=True, log_internal_state=False)
 
     # Normalize action space
     env = NormalizeActionWrapper(env)
 
     # Normalize observation space
-    env = NormalizeObservationWrapper(env)
-    # env = NormalizeObservationWrapper(env, normalize_goal_spaces=True)  # goal-conditioned environments
+    # env = NormalizeObservationWrapper(env)
+    env = NormalizeObservationWrapper(env, normalize_goal_spaces=True)  # goal-conditioned environments
 
     # Set max steps
     env = TimeLimitWrapper(env, max_episode_steps=100)
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     # model = TD3_GOAL.load_trained_model(model_path=model_path, model_pkg=pkg_path, config_filename=config_file_name,
     #                                    env=env)
 
-    obs = env.reset()
+    obs, _ = env.reset()
     episodes = 1000
     epi_count = 0
     while epi_count < episodes:
@@ -102,7 +102,7 @@ if __name__ == '__main__':
         if term or trunc:
             epi_count += 1
             rospy.logwarn("Episode: " + str(epi_count))
-            obs = env.reset()
+            obs, _  = env.reset()
 
     env.close()
     sys.exit()

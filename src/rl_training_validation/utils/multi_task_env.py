@@ -1,6 +1,6 @@
 from copy import deepcopy
 import gymnasium as gym
-from typing import Optional, Union, List
+from typing import Optional, List
 from gymnasium import spaces
 import numpy as np
 
@@ -12,115 +12,92 @@ import uniros as uniros_gym
 
 class MultiTaskEnv(gym.Env):
     """
-    This class is a wrapper for multiple environments. It is used to train multiple tasks in parallel.
-    Please note that this is not MPI parallelism, but rather a way to train multiple tasks with one agent.
-    - Made for UniROS based environments
-    - Not tested with other environments
+    A wrapper that trains multiple UniROS-based Gym environments in one agent.
+    Not MPI-parallel; it simply samples a different task each reset.
     """
 
-    def __init__(self, env_list: List[str], env_args_dict: Optional[dict] = None,
-                 wrapper_list: Optional[List[str]] = None, wrapper_args_dict: Optional[dict] = None):
+    def __init__(
+        self,
+        env_list: List[str],
+        env_args_list: Optional[List[dict]] = None,
+        wrapper_list: Optional[List[str]] = None,
+        wrapper_args_dict: Optional[dict] = None,
+    ):
         """
         Args:
-            env_list: list of environment names - must be registered in gym
-            env_args_dict: dictionary with environment arguments (dict of dicts)
-            wrapper_list: list of wrapper names
-            wrapper_args_dict: dictionary with wrapper arguments (dict of dicts)
+            env_list: list of registered gym env names (e.g. UniROS names)
+            env_args_list: list of dicts, one per env in env_list, passed to make()
+            wrapper_list: list of wrapper class names (strings) to apply to every env
+            wrapper_args_dict: mapping from wrapper name → kwargs dict
         """
-        super(MultiTaskEnv, self).__init__()
+        super().__init__()
 
-        # Initialize optional dictionaries
-        if env_args_dict is None:
-            env_args_dict = {}
-        if wrapper_args_dict is None:
-            wrapper_args_dict = {}
+        # Default to empty-kwargs for each env
+        if env_args_list is None:
+            env_args_list = [{} for _ in env_list]
+        if len(env_args_list) != len(env_list):
+            raise ValueError("env_args_list must have same length as env_list")
 
-        # Create the environments
+        wrapper_args_dict = wrapper_args_dict or {}
+
+        # Create and wrap each env
         self.env_list = []
-        for env_name in env_list:
-            env = uniros_gym.make(env_name, **env_args_dict.get(env_name, {}))
+        for env_name, args in zip(env_list, env_args_list):
+            env = uniros_gym.make(env_name, **args)
+
+            if wrapper_list:
+                for wr in wrapper_list:
+                    if wr == "NormalizeActionWrapper":
+                        env = NormalizeActionWrapper(env)
+                    elif wr == "NormalizeObservationWrapper":
+                        env = NormalizeObservationWrapper(
+                            env, **wrapper_args_dict.get(wr, {})
+                        )
+                    elif wr == "TimeLimitWrapper":
+                        env = TimeLimitWrapper(
+                            env, **wrapper_args_dict.get(wr, {})
+                        )
+                    else:
+                        raise ValueError(f"Wrapper {wr} not implemented")
+
             self.env_list.append(env)
 
-        # Apply wrappers
-        if wrapper_list is not None:
-            for i in range(len(self.env_list)):
-                # Get the environment
-                env = self.env_list[i]
+        # Determine unified action / obs dims
+        max_obs_dim = max(e.observation_space.shape[0] for e in self.env_list)
+        max_act_dim = max(e.action_space.shape[0] for e in self.env_list)
 
-                # Apply the wrappers
-                for wrapper_name in wrapper_list:
-                    if wrapper_name == 'NormalizeActionWrapper':
-                        env = NormalizeActionWrapper(env)
-                    elif wrapper_name == 'NormalizeObservationWrapper':
-                        env = NormalizeObservationWrapper(env, **wrapper_args_dict.get(wrapper_name, {}))
-                    elif wrapper_name == 'TimeLimitWrapper':
-                        env = TimeLimitWrapper(env, **wrapper_args_dict.get(wrapper_name, {}))
-                    else:
-                        raise ValueError(f"Wrapper {wrapper_name} not implemented")
-
-                # Update the environment in the list
-                self.env_list[i] = env
-
-        # Find maximum observation and action space dimensions
-        max_obs_dim = max(env.observation_space.shape[0] for env in self.env_list)
-        max_act_dim = max(env.action_space.shape[0] for env in self.env_list)
-
-        # Define the action and observation spaces
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(max_act_dim,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(max_obs_dim,), dtype=np.float32)
+        self.observation_space = spaces.Box(
+            low=-np.inf, high=np.inf, shape=(max_obs_dim,), dtype=np.float32
+        )
+        self.action_space = spaces.Box(
+            low=-1.0, high=1.0, shape=(max_act_dim,), dtype=np.float32
+        )
 
         self.current_env = None
 
     def step(self, action):
-        """
-        Step through the environment with the given action
-        """
-        # Unpad the action
-        action = self._unpad_action(action)
-
-        # Step through the environment
-        observation, reward, terminated, truncated, info = self.current_env.step(action)
-
-        # Pad the observation to match the maximum observation space dimension
-        observation = self._pad_obs(observation)
-
-        return observation, reward, terminated, truncated, info
+        # trim to current env’s action dim
+        raw_act = action[: self.current_env.action_space.shape[0]]
+        obs, rew, term, trunc, info = self.current_env.step(raw_act)
+        # pad obs up to max_obs_dim
+        padded = np.zeros(self.observation_space.shape, dtype=np.float32)
+        padded[: obs.shape[0]] = obs
+        return padded, rew, term, trunc, info
 
     def reset(self, **kwargs):
-        """
-        Reset the environment by selecting a new environment and resetting it.
-        """
-        # Reset the current environment - For ROS-based environments, this is important to stop the current environment
+        # optionally reset previously used env
         if self.current_env is not None:
-            self.current_env.reset()  # we don't need to close it since we may choose it again
+            self.current_env.reset()
 
-        # Randomly select a new environment from the list
-        rand_choice = np.random.choice(len(self.env_list))
-        self.current_env = self.env_list[rand_choice]
+        # pick a new one
+        idx = np.random.choice(len(self.env_list))
+        self.current_env = self.env_list[idx]
 
-        # Reset the new environment
         obs, info = self.current_env.reset(**kwargs)
-
-        # Pad the observation to match the maximum observation space dimension
-        padded_obs = self._pad_obs(obs)
-
-        return padded_obs, info
+        padded = np.zeros(self.observation_space.shape, dtype=np.float32)
+        padded[: obs.shape[0]] = obs
+        return padded, info
 
     def close(self):
-        for env in self.env_list:
-            env.close()
-
-    def _pad_obs(self, obs):
-        """
-        Pad the observation with zeros to match the maximum observation space dimension
-        """
-        padded_obs = np.zeros(self.observation_space.shape)
-        padded_obs[:obs.shape[0]] = obs
-        return padded_obs
-
-    def _unpad_action(self, action):
-        """
-        Remove the padding from the action
-        """
-        unpadded_action = action[:self.current_env.action_space.shape[0]]
-        return unpadded_action
+        for e in self.env_list:
+            e.close()

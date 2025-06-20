@@ -9,7 +9,7 @@ Before installing this package, make sure you have installed [rl_environments](h
 
 ### 2. SB3 ROS Support Package
 
-This package contains the necessary scripts to train and evaluate the reach task using Stable Baselines3. You can download it from [here](https://github.com/ncbdrck/sb3_ros_support) and follow the instructions to install it.
+This package contains the necessary scripts to train and evaluate tasks using Stable Baselines3. You can download it from [here](https://github.com/ncbdrck/sb3_ros_support) and follow the instructions to install it.
 ```shell
 # download the package
 cd ~/catkin_ws/src

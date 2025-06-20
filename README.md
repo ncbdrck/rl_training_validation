@@ -46,3 +46,7 @@ rosrun rl_training_validation {robot}_{task)_train_sim.py
 ```shell
 rosrun rl_training_validation {robot}_{task)_train_real.py
 ```
+
+## Contact
+
+For questions, suggestions, or collaborations, feel free to reach out to the project maintainer at [j.kapukotuwa@research.ait.ie](mailto:j.kapukotuwa@research.ait.ie).

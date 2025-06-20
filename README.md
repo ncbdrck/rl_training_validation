@@ -1,4 +1,4 @@
-# RL Training Validation - For Training UniROS Prebuilt Environments
+# RL Training & Validation - For Training and Inference of UniROS Prebuilt Environments
 
 This repository contains the necessary scripts to train and evaluate the `gymnasium-based` prebuilt tasks of [rl_environments](https://github.com/ncbdrck/rl_environments) using Stable Baselines3. 
 

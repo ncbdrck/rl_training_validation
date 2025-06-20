@@ -28,6 +28,36 @@ source devel/setup.bash
 ```
 Please note that the instructions assume you are using Ubuntu 20.04 and ROS Noetic. If you are using a different operating system or ROS version, make sure to adapt the commands accordingly.
 
+## Installation
+
+To install the `rl_training_validation` package, follow these steps:
+
+1. Clone the repository:
+    ```shell
+    cd ~/catkin_ws/src
+    git clone https://github.com/ncbdrck/rl_training_validation.git
+    ```
+
+2. This package relies on several Python packages. You can install them by running the following command:
+
+    ```shell
+    # Install pip if you haven't already by running this command
+    sudo apt-get install python3-pip
+
+    # install the required Python packages by running
+    cd ~/catkin_ws/src/rl_training_validation/
+    pip3 install -r requirements.txt
+    ```
+3. Build the ROS packages and source the environment:
+    ```shell
+   cd ~/catkin_ws/
+   rosdep install --from-paths src --ignore-src -r -y
+   catkin_make
+   source devel/setup.bash
+   rospack profile
+    ```
+
+
 ## Usage
 
 - The first step is to check the `{robot}_{task)_train_sim.py` or `{robot}_{task)_train_real.py` files in the scripts folder

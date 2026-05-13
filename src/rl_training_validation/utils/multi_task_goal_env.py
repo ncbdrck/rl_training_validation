@@ -109,9 +109,13 @@ class MultiTaskGoalEnv(gymnasium_robotics.GoalEnv):
         # seedable and not reproducible.
         super().reset(seed=seed)
 
-        # optionally reset old env (releases its resources)
-        if self.current_env is not None:
-            self.current_env.reset()
+        # Note: a previous implementation called ``self.current_env.reset()``
+        # here before picking the next task. That extra reset stepped the
+        # sub-env's RNG and produced an observation that was thrown away,
+        # which (a) wasted a real-world / Gazebo cycle and (b) shifted
+        # reproducibility against any seed plan that assumes one reset
+        # per episode. The chosen sub-env is reset below — that single
+        # reset is sufficient.
 
         # Pick a new sub-env using our seeded np_random.
         idx = int(self.np_random.integers(0, len(self.env_list)))

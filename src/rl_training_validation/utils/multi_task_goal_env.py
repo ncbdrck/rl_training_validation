@@ -72,6 +72,7 @@ class MultiTaskGoalEnv(gymnasium_robotics.GoalEnv):
         self.action_space = spaces.Box(-1.0, 1.0, (max_act_dim,), dtype=np.float32)
 
         self.current_env = None
+        self.current_env_idx = None  # set on each reset()
 
     def step(self, action):
         # trim to current env’s action dim
@@ -93,18 +94,38 @@ class MultiTaskGoalEnv(gymnasium_robotics.GoalEnv):
             "achieved_goal":  ag_padded,
             "desired_goal":   dg_padded,
         }
+        # Tag every step's info with the currently-active sub-env index.
+        # HER's replay buffer preserves info dicts; compute_reward()
+        # (below) reads info["task_id"] to route reward recomputation
+        # to the *correct* sub-env, not whichever one happens to be
+        # active when the replay batch is being relabelled.
+        info["task_id"] = self.current_env_idx
         return new_obs, reward, terminated, truncated, info
 
-    def reset(self, **kwargs):
-        # optionally reset old env
+    def reset(self, *, seed=None, options=None, **kwargs):
+        # Seed our OWN np_random for task choice (Gymnasium semantics).
+        # The previous implementation called np.random.choice() against
+        # numpy's global state, so the per-reset task choice was not
+        # seedable and not reproducible.
+        super().reset(seed=seed)
+
+        # optionally reset old env (releases its resources)
         if self.current_env is not None:
             self.current_env.reset()
 
-        # pick a new one
-        idx = np.random.choice(len(self.env_list))
+        # Pick a new sub-env using our seeded np_random.
+        idx = int(self.np_random.integers(0, len(self.env_list)))
+        self.current_env_idx = idx
         self.current_env = self.env_list[idx]
 
-        obs_dict, info = self.current_env.reset(**kwargs)
+        # Reset the chosen sub-env. We forward `options` and extra
+        # kwargs but NOT `seed`: sub-envs maintain their own RNG state.
+        # If you need cross-run reproducibility of sub-env randomness,
+        # seed each sub-env at construction via env_args.
+        sub_kwargs = dict(kwargs)
+        if options is not None:
+            sub_kwargs["options"] = options
+        obs_dict, info = self.current_env.reset(**sub_kwargs)
 
         # pad each piece
         obs_padded = np.zeros(self.observation_space["observation"].shape, dtype=np.float32)
@@ -121,6 +142,9 @@ class MultiTaskGoalEnv(gymnasium_robotics.GoalEnv):
             "achieved_goal":  ag_padded,
             "desired_goal":   dg_padded,
         }
+        # Record the active task in info so HER and other consumers can
+        # attribute this transition to a specific sub-env.
+        info["task_id"] = idx
         return new_obs, info
 
     def close(self):
@@ -131,10 +155,27 @@ class MultiTaskGoalEnv(gymnasium_robotics.GoalEnv):
         self,
         achieved_goal: np.ndarray,
         desired_goal: np.ndarray,
-        info: dict
+        info: dict,
     ) -> float:
         """
-        Called by HER to recompute rewards when relabeling.
-        Forward to the currently active environment.
+        Called by HER to recompute rewards when relabelling experience.
+
+        HER batches transitions from possibly-different sub-envs; the
+        "currently active" sub-env at recompute time may not be the
+        same as the sub-env that produced the transition. We therefore
+        route by ``info["task_id"]`` (stamped at reset() and step()
+        time) rather than ``self.current_env``.
+
+        Falls back to ``self.current_env`` if task_id is missing from
+        ``info`` (e.g. info dict was constructed by hand for a
+        single-task test). This is a best-effort fallback; for HER
+        correctness, ``info["task_id"]`` should be present.
         """
-        return self.current_env.compute_reward(achieved_goal, desired_goal, info)
+        task_id = info.get("task_id") if isinstance(info, dict) else None
+        if task_id is None:
+            # Backwards-compat fallback for callers who don't preserve
+            # task_id through replay. May silently misroute under HER
+            # if the active sub-env has changed since the transition
+            # was collected.
+            return self.current_env.compute_reward(achieved_goal, desired_goal, info)
+        return self.env_list[task_id].compute_reward(achieved_goal, desired_goal, info)

@@ -74,6 +74,7 @@ class MultiTaskEnv(gym.Env):
         )
 
         self.current_env = None
+        self.current_env_idx = None  # set on each reset()
 
     def step(self, action):
         # trim to current env’s action dim
@@ -82,18 +83,43 @@ class MultiTaskEnv(gym.Env):
         # pad obs up to max_obs_dim
         padded = np.zeros(self.observation_space.shape, dtype=np.float32)
         padded[: obs.shape[0]] = obs
+        # Tag every step's info with the currently-active sub-env index.
+        # Consumers (HER replay, evaluation logs, etc.) can attribute
+        # transitions back to a specific task.
+        info["task_id"] = self.current_env_idx
         return padded, rew, term, trunc, info
 
-    def reset(self, **kwargs):
-        # optionally reset previously used env
+    def reset(self, *, seed=None, options=None, **kwargs):
+        # Seed our OWN np_random (Gymnasium semantics). Used below to
+        # pick which sub-env runs this episode. The previous implementation
+        # called np.random.choice() against numpy's global state, so the
+        # per-reset task choice was not seedable and not reproducible.
+        super().reset(seed=seed)
+
+        # optionally reset previously used env (releases its resources)
         if self.current_env is not None:
             self.current_env.reset()
 
-        # pick a new one
-        idx = np.random.choice(len(self.env_list))
+        # Pick a new sub-env using our seeded np_random.
+        idx = int(self.np_random.integers(0, len(self.env_list)))
+        self.current_env_idx = idx
         self.current_env = self.env_list[idx]
 
-        obs, info = self.current_env.reset(**kwargs)
+        # Reset the chosen sub-env. We forward `options` and any extra
+        # kwargs, but NOT `seed`: sub-envs maintain their own RNG state
+        # across episodes, and re-seeding them on every reset would
+        # defeat that. If you need cross-run reproducibility of sub-env
+        # randomness, seed each sub-env at construction time via env_args.
+        sub_kwargs = dict(kwargs)
+        if options is not None:
+            sub_kwargs["options"] = options
+        obs, info = self.current_env.reset(**sub_kwargs)
+
+        # Record the active task in info so downstream consumers (in
+        # particular the MultiTaskGoalEnv reward-routing logic) can
+        # identify which sub-env produced this transition.
+        info["task_id"] = idx
+
         padded = np.zeros(self.observation_space.shape, dtype=np.float32)
         padded[: obs.shape[0]] = obs
         return padded, info

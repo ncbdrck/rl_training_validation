@@ -1,5 +1,9 @@
 # RL Training & Validation - For Training and Inference of UniROS Prebuilt Environments
 
+[![Documentation Status](https://readthedocs.org/projects/uniros/badge/?version=latest)](https://uniros.readthedocs.io/en/latest/?badge=latest)
+
+📚 **Full documentation**: [uniros.readthedocs.io](https://uniros.readthedocs.io/) (ecosystem-wide docs hosted via UniROS)
+
 This repository contains the necessary scripts to train and evaluate the `gymnasium-based` prebuilt tasks of [rl_environments](https://github.com/ncbdrck/rl_environments) using Stable Baselines3. 
 
 ## Prerequisites

@@ -60,7 +60,7 @@ To install the `rl_training_validation` package, follow these steps:
 
 ## Usage
 
-- The first step is to check the `{robot}_{task)_train_sim.py` or `{robot}_{task)_train_real.py` files in the scripts folder
+- The first step is to check the `{robot}_{task}_train_sim.py` or `{robot}_{task}_train_real.py` files in the scripts folder
 and modify the parameters accordingly.
 - The RL model parameters are in the `config` folder in this repo.
 - The task configuration is also found in the `config` folder. (`{robot}_{task}_config.yaml`)
@@ -69,13 +69,29 @@ and modify the parameters accordingly.
 
 **Simulation**:
 ```shell
-rosrun rl_training_validation {robot}_{task)_train_sim.py
+rosrun rl_training_validation {robot}_{task}_train_sim.py
 ```
 
 **Real-World**:
 ```shell
-rosrun rl_training_validation {robot}_{task)_train_real.py
+rosrun rl_training_validation {robot}_{task}_train_real.py
 ```
+
+## Documentation
+
+Full ecosystem documentation lives under
+[`UniROS/docs/`](https://github.com/ncbdrck/UniROS/tree/main/docs).
+Specific topics relevant to this repository:
+
+- [Training a model](https://github.com/ncbdrck/UniROS/tree/main/docs/guides/training.rst)
+  — using `sb3_ros_support`, plain Stable Baselines3, or any other
+  gymnasium-compatible library.
+- [Joint sim+real training](https://github.com/ncbdrck/UniROS/tree/main/docs/guides/joint_sim_real_training.rst)
+  — the third use case from the paper, using the `MultiTaskEnv`
+  wrapper in this repo.
+- [Using trained models](https://github.com/ncbdrck/UniROS/tree/main/docs/guides/using_trained_models.rst)
+  — loading saved models, validating sim-trained models on real
+  hardware.
 
 ## Contact
 

@@ -75,6 +75,13 @@ class MultiTaskGoalEnv(gymnasium_robotics.GoalEnv):
         self.current_env_idx = None  # set on each reset()
 
     def step(self, action):
+        """
+        Step the currently-active sub-env with ``action`` trimmed to
+        its action dimension, then pad each piece of the returned
+        observation dict (``observation`` / ``achieved_goal`` /
+        ``desired_goal``) to the unified maximum dims and stamp
+        ``info["task_id"]``.
+        """
         # trim to current env’s action dim
         raw_a = action[: self.current_env.action_space.shape[0]]
         obs_dict, reward, terminated, truncated, info = self.current_env.step(raw_a)

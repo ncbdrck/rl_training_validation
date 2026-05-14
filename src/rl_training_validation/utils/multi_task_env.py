@@ -77,6 +77,11 @@ class MultiTaskEnv(gym.Env):
         self.current_env_idx = None  # set on each reset()
 
     def step(self, action):
+        """
+        Step the currently-active sub-env with ``action`` trimmed to
+        its action dimension, then pad the returned observation to
+        the unified ``max_obs_dim`` and stamp ``info["task_id"]``.
+        """
         # trim to current env’s action dim
         raw_act = action[: self.current_env.action_space.shape[0]]
         obs, rew, term, trunc, info = self.current_env.step(raw_act)

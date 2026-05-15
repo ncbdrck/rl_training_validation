@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """
-Validate a trained policy against the RX200 sim Push task.
+Train an SB3 TD3 policy on the RX200 sim Slide task.
 
-Mirrors the train script for env construction; loads a saved
-model and rolls it out for ``--episodes`` episodes, logging
-success rate, truncations, and sensor timeouts from ``info``.
+Standard env id:  ``UniROS-RX200SlideSim-v0``
+Goal env id:      ``UniROS-RX200SlideGoalSim-v0``
+
+Requires Gazebo + roscore to already be running. The env class
+launches the appropriate MoveIt stack itself.
 """
 from __future__ import annotations
 
 import argparse
 import sys
 
-import rospy
 import gymnasium as gym
 
 import rl_environments  # noqa: F401  trigger registration
@@ -28,20 +29,20 @@ from multiros.wrappers.normalize_obs_wrapper import NormalizeObservationWrapper
 from multiros.wrappers.time_limit_wrapper import TimeLimitWrapper
 
 
-ENV_STD  = "UniROS-RX200PushSim-v0"
-ENV_GOAL = "UniROS-RX200PushGoalSim-v0"
-CFG_STD  = "rx200_push_td3.yaml"
-CFG_GOAL = "rx200_push_td3_goal.yaml"
+ENV_STD = "UniROS-RX200SlideSim-v0"
+ENV_GOAL = "UniROS-RX200SlideGoalSim-v0"
+CFG_STD = "rx200_slide_td3.yaml"
+CFG_GOAL = "rx200_slide_td3_goal.yaml"
 
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--goal", action="store_true")
+    p.add_argument("--goal", action="store_true",
+                   help="Use the goal-conditioned env + HER.")
     p.add_argument("--seed", type=int, default=10)
     p.add_argument("--max-episode-steps", type=int, default=100)
-    p.add_argument("--episodes", type=int, default=20)
     p.add_argument("--gazebo-gui", action="store_true")
-    p.add_argument("--model-tag", default="trained_model")
+    p.add_argument("--reward-type", default=None)
     add_real_motion_cli(p)
     return p.parse_args()
 
@@ -61,8 +62,14 @@ def main() -> int:
         use_smoothing=False,
         action_speed=0.100,
         log_internal_state=False,
-        reward_type="Sparse" if args.goal else "Dense",
     )
+    if args.reward_type:
+        env_kwargs["reward_type"] = args.reward_type
+    elif is_goal_env(env_id):
+        env_kwargs["reward_type"] = "Sparse"
+    else:
+        env_kwargs["reward_type"] = "Dense"
+
     env = gym.make(env_id, **env_kwargs)
     env = NormalizeActionWrapper(env)
     if is_goal_env(env_id):
@@ -70,46 +77,25 @@ def main() -> int:
     else:
         env = NormalizeObservationWrapper(env)
     env = TimeLimitWrapper(env, max_episode_steps=args.max_episode_steps)
+    env.reset()
 
     pkg_path = "rl_training_validation"
     if args.goal:
         cfg = CFG_GOAL
-        base = "/models/sim/td3_goal/rx200/push/"
+        save_path = "/models/sim/td3_goal/rx200/slide/"
+        log_path = "/logs/sim/td3_goal/rx200/slide/"
         ModelCls = TD3_GOAL
     else:
         cfg = CFG_STD
-        base = "/models/sim/td3/rx200/push/"
+        save_path = "/models/sim/td3/rx200/slide/"
+        log_path = "/logs/sim/td3/rx200/slide/"
         ModelCls = TD3
-    model_path = base + args.model_tag
-    model = ModelCls.load_trained_model(model_path=model_path, model_pkg=pkg_path,
-                                        config_filename=cfg, env=env)
 
-    obs, _ = env.reset()
-    successes, truncs, timeouts = 0, 0, 0
-    for ep in range(args.episodes):
-        done = False
-        ep_success = False
-        while not done:
-            action, _ = model.predict(observation=obs, deterministic=True)
-            obs, _, terminated, truncated, info = env.step(action)
-            if info.get("sensor_timeout"):
-                timeouts += 1
-            if info.get("is_success"):
-                ep_success = True
-            if terminated or truncated:
-                done = True
-                if truncated and not terminated:
-                    truncs += 1
-        if ep_success:
-            successes += 1
-        rospy.loginfo(f"Episode {ep + 1}/{args.episodes} success={ep_success}")
-        obs, _ = env.reset()
-
-    print(f"\nResults over {args.episodes} episodes:")
-    print(f"  success rate:        {successes}/{args.episodes} = {100*successes/args.episodes:.1f}%")
-    print(f"  truncated (no term): {truncs}")
-    print(f"  sensor_timeout flags: {timeouts}")
-    env.close()
+    model = ModelCls(env, save_path, log_path, model_pkg_path=pkg_path,
+                     config_file_pkg=pkg_path, config_filename=cfg)
+    model.train()
+    model.save_model()
+    model.close_env()
     return 0
 
 

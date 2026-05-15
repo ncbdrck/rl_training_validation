@@ -32,8 +32,10 @@ from multiros.wrappers.time_limit_wrapper import TimeLimitWrapper
 
 ENV_STD  = "UniROS-UR5ReachSim-v0"
 ENV_GOAL = "UniROS-UR5ReachGoalSim-v0"
-CFG_STD  = "rx200_reacher_td3.yaml"
-CFG_GOAL = "rx200_reacher_td3_goal.yaml"
+CFG_STD_TD3 = "rx200_reacher_td3.yaml"
+CFG_STD_SAC = "rx200_reacher_sac.yaml"
+CFG_GOAL_TD3 = "rx200_reacher_td3_goal.yaml"
+CFG_GOAL_SAC = "rx200_reacher_sac_goal.yaml"
 
 
 def parse_args() -> argparse.Namespace:
@@ -76,11 +78,11 @@ def main() -> int:
 
     pkg_path = "rl_training_validation"
     if args.goal:
-        cfg = CFG_GOAL
+        cfg = CFG_GOAL_TD3 if args.algo == "td3" else CFG_GOAL_SAC
         base = "/models/sim/td3_goal/ur5/reach/" if args.algo == "td3" else "/models/sim/sac_goal/ur5/reach/"
         ModelCls = TD3_GOAL if args.algo == "td3" else SAC_GOAL
     else:
-        cfg = CFG_STD
+        cfg = CFG_STD_TD3 if args.algo == "td3" else CFG_STD_SAC
         base = "/models/sim/td3/ur5/reach/" if args.algo == "td3" else "/models/sim/sac/ur5/reach/"
         ModelCls = TD3 if args.algo == "td3" else SAC
     model_path = base + args.model_tag

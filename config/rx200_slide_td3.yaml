@@ -1,0 +1,51 @@
+# YAML Document starts with ---
+# Comments start with #
+---
+  # Training
+  training_steps: 160000
+
+  # Save params
+  save_freq: 500000
+  save_prefix: td3_slide_sim_audited_s10
+  trained_model_name: trained_model_slide_sim_audited_s10
+  save_replay_buffer: True
+
+  # Load model params
+  load_model: False
+  model_name: trained_model_slide_sim_audited_s10
+
+  # Logging parameters
+  log_folder: TD3_model_slide_sim_audited_s10
+  log_interval: 1
+  reset_num_timesteps: False
+
+  # Use custom policy - Only MlpPolicy is supported
+  use_custom_policy: False
+  policy_params:
+    net_arch: [400, 300]
+    activation_fn: relu
+    features_extractor_class: FlattenExtractor
+    optimizer_class: Adam
+
+  # Use action noise
+  use_action_noise: True
+  action_noise:
+    mean: 0.0
+    sigma: 0.01
+
+  # TD3 parameters
+  td3_params:
+    learning_rate: 0.001
+    buffer_size: 1000000
+    learning_starts: 100
+    batch_size: 100
+    tau: 0.005
+    gamma: 0.99
+    gradient_steps: -1
+    policy_delay: 2
+    target_policy_noise: 0.2
+    target_noise_clip: 0.5
+    train_freq:
+      freq: 20
+      unit: step
+    seed: 10

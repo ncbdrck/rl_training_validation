@@ -19,6 +19,7 @@ Run it like::
 from __future__ import annotations
 
 import os
+import re
 import sys
 import yaml
 
@@ -144,6 +145,34 @@ def test_yaml_configs() -> int:
     return issues
 
 
+def test_script_config_references() -> int:
+    print("\n[5] script config references exist...")
+    cfg_dir = os.path.join(REPO_ROOT, "config")
+    pattern = re.compile(r"CFG_[A-Z0-9_]*\s*=\s*['\"]([^'\"]+\.ya?ml)['\"]")
+    issues = 0
+    refs = []
+    src_dir = os.path.join(REPO_ROOT, "src")
+    for dirpath, _, files in os.walk(src_dir):
+        for name in files:
+            if not name.endswith(".py"):
+                continue
+            path = os.path.join(dirpath, name)
+            with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                text = fh.read()
+            for cfg in pattern.findall(text):
+                refs.append((cfg, os.path.relpath(path, REPO_ROOT)))
+
+    for cfg, relpath in sorted(set(refs)):
+        if not os.path.exists(os.path.join(cfg_dir, cfg)):
+            print(f"  ❌ {cfg} referenced by {relpath} is missing")
+            issues += 1
+        else:
+            print(f"  ✅ {cfg}")
+    if not refs:
+        print("  ⚠️ no CFG_* YAML references found")
+    return issues
+
+
 def main() -> int:
     print("=" * 60)
     print("  Training-repo smoke test (no Gazebo, no hardware)")
@@ -153,6 +182,7 @@ def main() -> int:
     total += test_env_safety_helpers()
     total += test_blocked_envs_raise()
     total += test_yaml_configs()
+    total += test_script_config_references()
     print("\n" + "=" * 60)
     if total == 0:
         print("  ✅ ALL SMOKE TESTS PASSED")

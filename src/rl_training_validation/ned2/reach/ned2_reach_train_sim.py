@@ -34,8 +34,10 @@ from multiros.wrappers.time_limit_wrapper import TimeLimitWrapper
 
 ENV_STD  = "UniROS-Ned2ReachSim-v0"
 ENV_GOAL = "UniROS-Ned2ReachGoalSim-v0"
-CFG_STD  = "rx200_reacher_td3.yaml"
-CFG_GOAL = "rx200_reacher_td3_goal.yaml"
+CFG_STD_TD3 = "rx200_reacher_td3.yaml"
+CFG_STD_SAC = "rx200_reacher_sac.yaml"
+CFG_GOAL_TD3 = "rx200_reacher_td3_goal.yaml"
+CFG_GOAL_SAC = "rx200_reacher_sac_goal.yaml"
 
 
 def parse_args() -> argparse.Namespace:
@@ -85,12 +87,12 @@ def main() -> int:
 
     pkg_path = "rl_training_validation"
     if args.goal:
-        cfg = CFG_GOAL
+        cfg = CFG_GOAL_TD3 if args.algo == "td3" else CFG_GOAL_SAC
         save_path = "/models/sim/td3_goal/ned2/reach/" if args.algo == "td3" else "/models/sim/sac_goal/ned2/reach/"
         log_path  = "/logs/sim/td3_goal/ned2/reach/"   if args.algo == "td3" else "/logs/sim/sac_goal/ned2/reach/"
         ModelCls = TD3_GOAL if args.algo == "td3" else SAC_GOAL
     else:
-        cfg = CFG_STD
+        cfg = CFG_STD_TD3 if args.algo == "td3" else CFG_STD_SAC
         save_path = "/models/sim/td3/ned2/reach/" if args.algo == "td3" else "/models/sim/sac/ned2/reach/"
         log_path  = "/logs/sim/td3/ned2/reach/"   if args.algo == "td3" else "/logs/sim/sac/ned2/reach/"
         ModelCls = TD3 if args.algo == "td3" else SAC

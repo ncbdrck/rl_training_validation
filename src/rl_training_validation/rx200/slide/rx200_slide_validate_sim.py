@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Validate a trained policy against the Ned2 sim Reach task.
+Validate a trained TD3 policy against the RX200 sim Slide task.
 
-Mirrors the train script for env construction; loads a saved
-model and rolls it out for ``--episodes`` episodes, logging
-success rate, truncations, and sensor timeouts from ``info``.
+Mirrors the train script for env construction; loads a saved model and
+rolls it out for ``--episodes`` episodes, logging success rate,
+truncations, and sensor timeouts from ``info``.
 """
 from __future__ import annotations
 
@@ -20,28 +20,23 @@ from rl_training_validation.utils.env_safety import (
     add_real_motion_cli, check_env_constructable, is_goal_env,
 )
 
-from sb3_ros_support.sac import SAC
 from sb3_ros_support.td3 import TD3
 from sb3_ros_support.td3_goal import TD3_GOAL
-from sb3_ros_support.sac_goal import SAC_GOAL
 
 from multiros.wrappers.normalize_action_wrapper import NormalizeActionWrapper
 from multiros.wrappers.normalize_obs_wrapper import NormalizeObservationWrapper
 from multiros.wrappers.time_limit_wrapper import TimeLimitWrapper
 
 
-ENV_STD  = "UniROS-Ned2ReachSim-v0"
-ENV_GOAL = "UniROS-Ned2ReachGoalSim-v0"
-CFG_STD_TD3 = "rx200_reacher_td3.yaml"
-CFG_STD_SAC = "rx200_reacher_sac.yaml"
-CFG_GOAL_TD3 = "rx200_reacher_td3_goal.yaml"
-CFG_GOAL_SAC = "rx200_reacher_sac_goal.yaml"
+ENV_STD = "UniROS-RX200SlideSim-v0"
+ENV_GOAL = "UniROS-RX200SlideGoalSim-v0"
+CFG_STD = "rx200_slide_td3.yaml"
+CFG_GOAL = "rx200_slide_td3_goal.yaml"
 
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--goal", action="store_true")
-    p.add_argument("--algo", default="td3", choices=("td3", "sac"))
     p.add_argument("--seed", type=int, default=10)
     p.add_argument("--max-episode-steps", type=int, default=100)
     p.add_argument("--episodes", type=int, default=20)
@@ -78,13 +73,13 @@ def main() -> int:
 
     pkg_path = "rl_training_validation"
     if args.goal:
-        cfg = CFG_GOAL_TD3 if args.algo == "td3" else CFG_GOAL_SAC
-        base = "/models/sim/td3_goal/ned2/reach/" if args.algo == "td3" else "/models/sim/sac_goal/ned2/reach/"
-        ModelCls = TD3_GOAL if args.algo == "td3" else SAC_GOAL
+        cfg = CFG_GOAL
+        base = "/models/sim/td3_goal/rx200/slide/"
+        ModelCls = TD3_GOAL
     else:
-        cfg = CFG_STD_TD3 if args.algo == "td3" else CFG_STD_SAC
-        base = "/models/sim/td3/ned2/reach/" if args.algo == "td3" else "/models/sim/sac/ned2/reach/"
-        ModelCls = TD3 if args.algo == "td3" else SAC
+        cfg = CFG_STD
+        base = "/models/sim/td3/rx200/slide/"
+        ModelCls = TD3
     model_path = base + args.model_tag
     model = ModelCls.load_trained_model(model_path=model_path, model_pkg=pkg_path,
                                         config_filename=cfg, env=env)

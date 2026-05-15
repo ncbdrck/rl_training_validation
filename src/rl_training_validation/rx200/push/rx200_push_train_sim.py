@@ -22,10 +22,8 @@ from rl_training_validation.utils.env_safety import (
     add_real_motion_cli, check_env_constructable, is_goal_env,
 )
 
-from sb3_ros_support.sac import SAC
 from sb3_ros_support.td3 import TD3
 from sb3_ros_support.td3_goal import TD3_GOAL
-from sb3_ros_support.sac_goal import SAC_GOAL
 
 from multiros.wrappers.normalize_action_wrapper import NormalizeActionWrapper
 from multiros.wrappers.normalize_obs_wrapper import NormalizeObservationWrapper
@@ -42,7 +40,6 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--goal", action="store_true",
                    help="Use the goal-conditioned env + HER.")
-    p.add_argument("--algo", default="td3", choices=("td3", "sac"))
     p.add_argument("--seed", type=int, default=10)
     p.add_argument("--max-episode-steps", type=int, default=100)
     p.add_argument("--gazebo-gui", action="store_true")
@@ -86,14 +83,14 @@ def main() -> int:
     pkg_path = "rl_training_validation"
     if args.goal:
         cfg = CFG_GOAL
-        save_path = "/models/sim/td3_goal/rx200/push/" if args.algo == "td3" else "/models/sim/sac_goal/rx200/push/"
-        log_path  = "/logs/sim/td3_goal/rx200/push/"   if args.algo == "td3" else "/logs/sim/sac_goal/rx200/push/"
-        ModelCls = TD3_GOAL if args.algo == "td3" else SAC_GOAL
+        save_path = "/models/sim/td3_goal/rx200/push/"
+        log_path  = "/logs/sim/td3_goal/rx200/push/"
+        ModelCls = TD3_GOAL
     else:
         cfg = CFG_STD
-        save_path = "/models/sim/td3/rx200/push/" if args.algo == "td3" else "/models/sim/sac/rx200/push/"
-        log_path  = "/logs/sim/td3/rx200/push/"   if args.algo == "td3" else "/logs/sim/sac/rx200/push/"
-        ModelCls = TD3 if args.algo == "td3" else SAC
+        save_path = "/models/sim/td3/rx200/push/"
+        log_path  = "/logs/sim/td3/rx200/push/"
+        ModelCls = TD3
 
     model = ModelCls(env, save_path, log_path, model_pkg_path=pkg_path,
                      config_file_pkg=pkg_path, config_filename=cfg)

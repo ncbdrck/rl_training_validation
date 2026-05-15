@@ -20,10 +20,8 @@ from rl_training_validation.utils.env_safety import (
     add_real_motion_cli, check_env_constructable, is_goal_env,
 )
 
-from sb3_ros_support.sac import SAC
 from sb3_ros_support.td3 import TD3
 from sb3_ros_support.td3_goal import TD3_GOAL
-from sb3_ros_support.sac_goal import SAC_GOAL
 
 from multiros.wrappers.normalize_action_wrapper import NormalizeActionWrapper
 from multiros.wrappers.normalize_obs_wrapper import NormalizeObservationWrapper
@@ -39,7 +37,6 @@ CFG_GOAL = "rx200_pnp_td3_goal.yaml"
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--goal", action="store_true")
-    p.add_argument("--algo", default="td3", choices=("td3", "sac"))
     p.add_argument("--seed", type=int, default=10)
     p.add_argument("--max-episode-steps", type=int, default=100)
     p.add_argument("--episodes", type=int, default=20)
@@ -77,12 +74,12 @@ def main() -> int:
     pkg_path = "rl_training_validation"
     if args.goal:
         cfg = CFG_GOAL
-        base = "/models/sim/td3_goal/rx200/pnp/" if args.algo == "td3" else "/models/sim/sac_goal/rx200/pnp/"
-        ModelCls = TD3_GOAL if args.algo == "td3" else SAC_GOAL
+        base = "/models/sim/td3_goal/rx200/pnp/"
+        ModelCls = TD3_GOAL
     else:
         cfg = CFG_STD
-        base = "/models/sim/td3/rx200/pnp/" if args.algo == "td3" else "/models/sim/sac/rx200/pnp/"
-        ModelCls = TD3 if args.algo == "td3" else SAC
+        base = "/models/sim/td3/rx200/pnp/"
+        ModelCls = TD3
     model_path = base + args.model_tag
     model = ModelCls.load_trained_model(model_path=model_path, model_pkg=pkg_path,
                                         config_filename=cfg, env=env)

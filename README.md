@@ -70,7 +70,7 @@ python3 scripts/check_env_availability.py
 python3 scripts/check_goal_training_setup.py
 ```
 
-### Train: RX200 sim Reach (standard env, TD3)
+### Train: RX200 sim Reach
 
 In separate terminals:
 
@@ -81,14 +81,27 @@ roscore
 # 2. Gazebo (empty world is fine; the env spawns the RX200 URDF itself)
 roslaunch gazebo_ros empty_world.launch
 
-# 3. Trainer
+# 3. Trainer (TD3 by default; Reach also supports --algo sac)
 rosrun rl_training_validation rx200_reach_train_sim.py
 ```
 
-### Train: RX200 sim Reach (goal env, TD3+HER)
+### Train: RX200 sim object tasks
+
+RX200 Push, Pick-and-Place, and Slide are wired for TD3 only in this
+repo. Use `--goal` to switch to the goal-conditioned env and TD3+HER.
+
+```bash
+rosrun rl_training_validation rx200_push_train_sim.py
+rosrun rl_training_validation rx200_pnp_train_sim.py --goal
+rosrun rl_training_validation rx200_slide_train_sim.py
+```
+
+### Train: goal envs
 
 ```bash
 rosrun rl_training_validation rx200_reach_train_sim.py --goal
+rosrun rl_training_validation ned2_reach_train_sim.py --goal
+rosrun rl_training_validation ur5_reach_train_sim.py --goal
 ```
 
 HER is only wired into the `*_GOAL` algorithms in `sb3_ros_support`.
@@ -135,7 +148,7 @@ src/rl_training_validation/
     multi_task_env.py        # multi-task wrapper used by multi_train_sim
   _blocked_stub.py           # shared 'blocked env id' bail-out
   rx200/ned2/ur5/
-    reach/  push/  pnp/      # per-task train + validate scripts
+    reach/  push/  pnp/  slide/  # per-task train + validate scripts/stubs
   multi_task_learning/
     multi_train_sim.py
 config/
@@ -166,6 +179,8 @@ scripts/
 * Validation scripts surface every `info["sensor_timeout"]=True` (cube
   perception timeout) and `info["is_success"]` so success rates are
   tracked correctly.
+* The smoke test checks that every `CFG_* = "*.yaml"` referenced by a
+  non-stub train/validate script exists in `config/`.
 
 ## Documentation
 

@@ -1,108 +1,120 @@
-#!/bin/python3
+#!/usr/bin/env python3
+"""
+Validate a trained policy against the RX200 sim Reach task.
+
+Mirrors the train script for env construction; loads a saved
+model and rolls it out for ``--episodes`` episodes, logging
+success rate, truncations, and sensor timeouts from ``info``.
+"""
+from __future__ import annotations
+
+import argparse
 import sys
 
-# ROS packages required
 import rospy
-
-# gym
 import gymnasium as gym
-import numpy as np
 
-# We can use the following import statement if we want to use the multiros package
-from multiros.utils import ros_common
+import rl_environments  # noqa: F401  trigger registration
 
-# Models
+from rl_training_validation.utils.env_safety import (
+    add_real_motion_cli, check_env_constructable, is_goal_env,
+)
+
 from sb3_ros_support.sac import SAC
 from sb3_ros_support.td3 import TD3
 from sb3_ros_support.td3_goal import TD3_GOAL
 from sb3_ros_support.sac_goal import SAC_GOAL
 
-# wrappers
 from multiros.wrappers.normalize_action_wrapper import NormalizeActionWrapper
 from multiros.wrappers.normalize_obs_wrapper import NormalizeObservationWrapper
 from multiros.wrappers.time_limit_wrapper import TimeLimitWrapper
 
-# import the environment
-import rl_environments
 
-"""
-Environments are registered inside the main __init__.py of the rl_environments package
-- RX200ReacherSim-v0  # RX200 Reacher Multiros Default Environment
-- RX200ReacherGoalSim-v0  # RX200 Reacher Goal Multiros Default Environment
-"""
-
-if __name__ == '__main__':
-    # Kill all processes related to previous runs
-    # ros_common.kill_all_ros_processes()
+ENV_STD  = "UniROS-RX200ReachSim-v0"
+ENV_GOAL = "UniROS-RX200ReachGoalSim-v0"
+CFG_STD  = "rx200_reacher_td3.yaml"
+CFG_GOAL = "rx200_reacher_td3_goal.yaml"
 
 
-    # Clear ROS logs
-    # ros_common.clean_ros_logs()
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--goal", action="store_true")
+    p.add_argument("--algo", default="td3", choices=("td3", "sac"))
+    p.add_argument("--seed", type=int, default=10)
+    p.add_argument("--max-episode-steps", type=int, default=100)
+    p.add_argument("--episodes", type=int, default=20)
+    p.add_argument("--gazebo-gui", action="store_true")
+    p.add_argument("--model-tag", default="trained_model")
+    add_real_motion_cli(p)
+    return p.parse_args()
 
-    # --- normal environments
-    env = gym.make('RX200ReacherSim-v0', gazebo_gui=True, ee_action_type=False, seed=10,
-                   delta_action=True, environment_loop_rate=10.0, action_cycle_time=0.500,
-                   use_smoothing=False, action_speed=0.100, reward_type="dense", log_internal_state=False)
 
-    # # --- goal environments
-    # env = gym.make('RX200ReacherGoalSim-v0', gazebo_gui=True, ee_action_type=False, seed=10,
-    #                delta_action=True, environment_loop_rate=10.0, action_cycle_time=0.500,
-    #                use_smoothing=False, action_speed=0.100, reward_type="sparse", log_internal_state=False)
+def main() -> int:
+    args = parse_args()
+    env_id = ENV_GOAL if args.goal else ENV_STD
+    check_env_constructable(env_id, allow_real_flag=args.allow_real_robot_motion)
 
-    # Normalize action space
+    env_kwargs = dict(
+        seed=args.seed,
+        gazebo_gui=args.gazebo_gui,
+        ee_action_type=False,
+        delta_action=True,
+        environment_loop_rate=10.0,
+        action_cycle_time=0.500,
+        use_smoothing=False,
+        action_speed=0.100,
+        log_internal_state=False,
+        reward_type="Sparse" if args.goal else "Dense",
+    )
+    env = gym.make(env_id, **env_kwargs)
     env = NormalizeActionWrapper(env)
+    if is_goal_env(env_id):
+        env = NormalizeObservationWrapper(env, normalize_goal_spaces=True)
+    else:
+        env = NormalizeObservationWrapper(env)
+    env = TimeLimitWrapper(env, max_episode_steps=args.max_episode_steps)
 
-    # Normalize observation space
-    # env = NormalizeObservationWrapper(env)
-    env = NormalizeObservationWrapper(env, normalize_goal_spaces=True)  # goal-conditioned environments
-
-    # Set max steps
-    env = TimeLimitWrapper(env, max_episode_steps=100)
-
-    # reset the environment
-    env.reset()
-
-    # path to the package
     pkg_path = "rl_training_validation"
-
-    # # Default base environments - SAC
-    # model_path = "/models/sim/sac/rx200/reach/" + "trained_model_mar10"
-    # config_file_name = "rx200_reacher_sac.yaml"
-    # # Load the model
-    # model = SAC.load_trained_model(model_path=model_path, model_pkg=pkg_path, config_filename=config_file_name,
-    #                                    env=env)
-
-    # # Goal-conditioned environments - SAC+HER
-    # model_path = "/models/sim/sac_goal/rx200/reach/" + "trained_model_mar10"
-    # config_file_name = "rx200_reacher_sac_goal.yaml"
-    # # Load the model
-    # model = SAC_GOAL.load_trained_model(model_path=model_path, model_pkg=pkg_path, config_filename=config_file_name,
-    #                                    env=env)
-
-    # Default base environments - TD3
-    model_path = "/models/sim/td3/rx200/reach/" + "trained_model_mar10"
-    config_file_name = "rx200_reacher_td3.yaml"
-    # create the model
-    model = TD3.load_trained_model(model_path=model_path, model_pkg=pkg_path, config_filename=config_file_name,
-                                   env=env)
-
-    # # Goal-conditioned environments - TD3+HER
-    # model_path = "/models/sim/td3_goal/rx200/reach/" + "trained_model_mar10"
-    # config_file_name = "rx200_reacher_td3_goal.yaml"
-    # # Load the model
-    # model = TD3_GOAL.load_trained_model(model_path=model_path, model_pkg=pkg_path, config_filename=config_file_name,
-    #                                    env=env)
+    if args.goal:
+        cfg = CFG_GOAL
+        base = "/models/sim/td3_goal/rx200/reach/" if args.algo == "td3" else "/models/sim/sac_goal/rx200/reach/"
+        ModelCls = TD3_GOAL if args.algo == "td3" else SAC_GOAL
+    else:
+        cfg = CFG_STD
+        base = "/models/sim/td3/rx200/reach/" if args.algo == "td3" else "/models/sim/sac/rx200/reach/"
+        ModelCls = TD3 if args.algo == "td3" else SAC
+    model_path = base + args.model_tag
+    model = ModelCls.load_trained_model(model_path=model_path, model_pkg=pkg_path,
+                                        config_filename=cfg, env=env)
 
     obs, _ = env.reset()
-    episodes = 1000
-    epi_count = 0
-    while epi_count < episodes:
-        action, _states = model.predict(observation=obs, deterministic=True)
-        obs, _, term, trunc, info = env.step(action)
-        if term or trunc:
-            epi_count += 1
-            rospy.logwarn("Episode: " + str(epi_count))
-            obs, _ = env.reset()
+    successes, truncs, timeouts = 0, 0, 0
+    for ep in range(args.episodes):
+        done = False
+        ep_success = False
+        while not done:
+            action, _ = model.predict(observation=obs, deterministic=True)
+            obs, _, terminated, truncated, info = env.step(action)
+            if info.get("sensor_timeout"):
+                timeouts += 1
+            if info.get("is_success"):
+                ep_success = True
+            if terminated or truncated:
+                done = True
+                if truncated and not terminated:
+                    truncs += 1
+        if ep_success:
+            successes += 1
+        rospy.loginfo(f"Episode {ep + 1}/{args.episodes} success={ep_success}")
+        obs, _ = env.reset()
 
+    print(f"\nResults over {args.episodes} episodes:")
+    print(f"  success rate:        {successes}/{args.episodes} = {100*successes/args.episodes:.1f}%")
+    print(f"  truncated (no term): {truncs}")
+    print(f"  sensor_timeout flags: {timeouts}")
     env.close()
-    sys.exit()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

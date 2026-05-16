@@ -1,25 +1,18 @@
 #!/usr/bin/env python3
 """
-Train an SB3 policy on the Ned2 sim Push task.
+Train an SB3 TD3 policy on the Ned2 sim Slide task.
 
-Standard env id:  ``UniROS-Ned2PushSim-v0``
-Goal env id:      ``UniROS-Ned2PushGoalSim-v0``
+Standard env id:  ``UniROS-Ned2SlideSim-v0``
+Goal env id:      ``UniROS-Ned2SlideGoalSim-v0``
 
-Requires Gazebo + roscore to already be running, with the Niryo
-``workspace_1`` pad in the world (e.g. bring up
-``$(rospack find niryo_robot_gazebo)/worlds/niryo_cube_world.world``).
-The env class spawns the ``cube_red`` SDF onto the pad each reset.
-
-Mirrors the RX200 push train script — same TD3 / TD3_GOAL pipeline,
-same wrappers (normalise action, normalise obs incl. goal spaces for
-the goal variant, time limit).
+Requires Gazebo + roscore to already be running. The env class
+launches the appropriate MoveIt stack itself.
 """
 from __future__ import annotations
 
 import argparse
 import sys
 
-import rospy
 import gymnasium as gym
 
 import rl_environments  # noqa: F401  trigger registration
@@ -36,10 +29,10 @@ from multiros.wrappers.normalize_obs_wrapper import NormalizeObservationWrapper
 from multiros.wrappers.time_limit_wrapper import TimeLimitWrapper
 
 
-ENV_STD  = "UniROS-Ned2PushSim-v0"
-ENV_GOAL = "UniROS-Ned2PushGoalSim-v0"
-CFG_STD  = "ned2_push_td3.yaml"
-CFG_GOAL = "ned2_push_td3_goal.yaml"
+ENV_STD = "UniROS-Ned2SlideSim-v0"
+ENV_GOAL = "UniROS-Ned2SlideGoalSim-v0"
+CFG_STD = "ned2_slide_td3.yaml"
+CFG_GOAL = "ned2_slide_td3_goal.yaml"
 
 
 def parse_args() -> argparse.Namespace:
@@ -89,13 +82,13 @@ def main() -> int:
     pkg_path = "rl_training_validation"
     if args.goal:
         cfg = CFG_GOAL
-        save_path = "/models/sim/td3_goal/ned2/push/"
-        log_path  = "/logs/sim/td3_goal/ned2/push/"
+        save_path = "/models/sim/td3_goal/ned2/slide/"
+        log_path = "/logs/sim/td3_goal/ned2/slide/"
         ModelCls = TD3_GOAL
     else:
         cfg = CFG_STD
-        save_path = "/models/sim/td3/ned2/push/"
-        log_path  = "/logs/sim/td3/ned2/push/"
+        save_path = "/models/sim/td3/ned2/slide/"
+        log_path = "/logs/sim/td3/ned2/slide/"
         ModelCls = TD3
 
     model = ModelCls(env, save_path, log_path, model_pkg_path=pkg_path,

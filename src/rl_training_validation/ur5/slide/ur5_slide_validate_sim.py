@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Validate a trained policy against the UR5 sim Push task.
+Validate a trained TD3 policy against the UR5 sim Slide task.
 
-Mirrors the train script for env construction; loads a saved
-model and rolls it out for ``--episodes`` episodes, logging
-success rate, truncations, and sensor timeouts from ``info``.
+Mirrors the train script for env construction; loads a saved model and
+rolls it out for ``--episodes`` episodes, logging success rate,
+truncations, and sensor timeouts from ``info``.
 """
 from __future__ import annotations
 
@@ -28,10 +28,10 @@ from multiros.wrappers.normalize_obs_wrapper import NormalizeObservationWrapper
 from multiros.wrappers.time_limit_wrapper import TimeLimitWrapper
 
 
-ENV_STD  = "UniROS-UR5PushSim-v0"
-ENV_GOAL = "UniROS-UR5PushGoalSim-v0"
-CFG_STD  = "ur5_push_td3.yaml"
-CFG_GOAL = "ur5_push_td3_goal.yaml"
+ENV_STD = "UniROS-UR5SlideSim-v0"
+ENV_GOAL = "UniROS-UR5SlideGoalSim-v0"
+CFG_STD = "ur5_slide_td3.yaml"
+CFG_GOAL = "ur5_slide_td3_goal.yaml"
 
 
 def parse_args() -> argparse.Namespace:
@@ -74,11 +74,11 @@ def main() -> int:
     pkg_path = "rl_training_validation"
     if args.goal:
         cfg = CFG_GOAL
-        base = "/models/sim/td3_goal/ur5/push/"
+        base = "/models/sim/td3_goal/ur5/slide/"
         ModelCls = TD3_GOAL
     else:
         cfg = CFG_STD
-        base = "/models/sim/td3/ur5/push/"
+        base = "/models/sim/td3/ur5/slide/"
         ModelCls = TD3
     model_path = base + args.model_tag
     model = ModelCls.load_trained_model(model_path=model_path, model_pkg=pkg_path,

@@ -5,10 +5,18 @@ Train an SB3 policy on the Ned2 sim Push task.
 Standard env id:  ``UniROS-Ned2PushSim-v0``
 Goal env id:      ``UniROS-Ned2PushGoalSim-v0``
 
-Requires Gazebo + roscore to already be running, with the Niryo
-``workspace_1`` pad in the world (e.g. bring up
-``$(rospack find niryo_robot_gazebo)/worlds/niryo_cube_world.world``).
-The env class spawns the ``cube_red`` SDF onto the pad each reset.
+Requires Gazebo + roscore to already be running, with a world that
+contains the Niryo workspace_1 pad. Recommended:
+
+    export GAZEBO_MODEL_PATH=$(rospack find niryo_robot_gazebo)/models:$GAZEBO_MODEL_PATH
+    roslaunch gazebo_ros empty_world.launch \\
+        world_name:=$(rospack find rl_environments)/worlds/ned2_workspace_only.world
+
+That world ships with rl_environments and contains workspace_1 +
+workspace_grille and NOTHING else, so the env's
+``spawn_cube_in_gazebo("red_cube")`` call has no name collision.
+The bundled ``niryo_cube_world.world`` would conflict on the first
+spawn because it pre-bakes cube_blue / cube_red / cube_green.
 
 Mirrors the RX200 push train script — same TD3 / TD3_GOAL pipeline,
 same wrappers (normalise action, normalise obs incl. goal spaces for

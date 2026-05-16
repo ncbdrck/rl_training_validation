@@ -5,8 +5,15 @@ Train an SB3 TD3 policy on the Ned2 sim Slide task.
 Standard env id:  ``UniROS-Ned2SlideSim-v0``
 Goal env id:      ``UniROS-Ned2SlideGoalSim-v0``
 
-Requires Gazebo + roscore to already be running. The env class
-launches the appropriate MoveIt stack itself.
+Requires Gazebo + roscore to already be running, with the Niryo
+workspace_1 pad in the world. Recommended:
+
+    export GAZEBO_MODEL_PATH=$(rospack find niryo_robot_gazebo)/models:$GAZEBO_MODEL_PATH
+    roslaunch gazebo_ros empty_world.launch \\
+        world_name:=$(rospack find rl_environments)/worlds/ned2_workspace_only.world
+
+See the Ned2 push train script for why the stripped world is preferred
+over the bundled niryo_cube_world.world.
 """
 from __future__ import annotations
 

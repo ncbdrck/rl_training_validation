@@ -1,30 +1,20 @@
 #!/usr/bin/env python3
 """
-Train an SB3 policy on the UR5e sim Pick-and-Place task.
+Train an SB3 policy on the UR5e sim Reach task.
 
-Standard env id:  ``UniROS-UR5ePnPSim-v0``
-Goal env id:      ``UniROS-UR5ePnPGoalSim-v0``
+Standard env id:  ``UniROS-UR5eReachSim-v0``
+Goal env id:      ``UniROS-UR5eReachGoalSim-v0``
 
-Requires Gazebo + roscore + the UR5e workspace world (provides the
-workbench the cube spawns onto). Bring it up like:
+Requires Gazebo + roscore to already be running, e.g.:
 
-    roslaunch gazebo_ros empty_world.launch \\
+    roslaunch gazebo_ros empty_world.launch \
         world_name:=$(rospack find rl_environments)/worlds/ur5_workspace.world
 
-The env class launches the UR5e MoveIt stack itself. The UR5e +
-Robotiq 85 URDF (composed via
-``rl_environments/urdf/ur5e_robotiq85_grasp.urdf.xacro``) pulls in the
-local ur5_envs and grippers packages via $(find ...) — those must be
-on ROS_PACKAGE_PATH.
-
-GRASP STABILITY: the bundled URDF already includes a Gazebo grasp
-plugin (attach_steps=2, detach_steps=2, min_contact_count=3). If
-grasp behaves unexpectedly during training, tune those parameters
-in
-``ur5_envs/ur5e_robot_description/urdf/ur5e_robotiq85_gripper.urdf.xacro``.
-
-TD3 / TD3_GOAL pipeline + standard wrappers (normalise action,
-normalise obs incl. goal spaces for the goal variant, time limit).
+The env class spawns the UR5e + Robotiq 85 gripper from
+``rl_environments/urdf/ur5e_robotiq85_grasp.urdf.xacro``
+(adds a virtual ``robotiq_grasp_link`` so MoveIt / IK target the
+gripper-tip). For Reach the gripper sits closed and is treated as
+a fixed end-effector.
 """
 from __future__ import annotations
 
@@ -40,24 +30,29 @@ from rl_training_validation.utils.env_safety import (
     add_real_motion_cli, check_env_constructable, is_goal_env,
 )
 
+from sb3_ros_support.sac import SAC
 from sb3_ros_support.td3 import TD3
 from sb3_ros_support.td3_goal import TD3_GOAL
+from sb3_ros_support.sac_goal import SAC_GOAL
 
 from multiros.wrappers.normalize_action_wrapper import NormalizeActionWrapper
 from multiros.wrappers.normalize_obs_wrapper import NormalizeObservationWrapper
 from multiros.wrappers.time_limit_wrapper import TimeLimitWrapper
 
 
-ENV_STD  = "UniROS-UR5ePnPSim-v0"
-ENV_GOAL = "UniROS-UR5ePnPGoalSim-v0"
-CFG_STD  = "ur5e_pnp_td3.yaml"
-CFG_GOAL = "ur5e_pnp_td3_goal.yaml"
+ENV_STD  = "UniROS-UR5eReachSim-v0"
+ENV_GOAL = "UniROS-UR5eReachGoalSim-v0"
+CFG_STD_TD3 = "ur5e_reach_td3.yaml"
+CFG_STD_SAC = "ur5e_reach_sac.yaml"
+CFG_GOAL_TD3 = "ur5e_reach_td3_goal.yaml"
+CFG_GOAL_SAC = "ur5e_reach_sac_goal.yaml"
 
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--goal", action="store_true",
                    help="Use the goal-conditioned env + HER.")
+    p.add_argument("--algo", default="td3", choices=("td3", "sac"))
     p.add_argument("--seed", type=int, default=10)
     p.add_argument("--max-episode-steps", type=int, default=100)
     p.add_argument("--gazebo-gui", action="store_true")
@@ -100,15 +95,15 @@ def main() -> int:
 
     pkg_path = "rl_training_validation"
     if args.goal:
-        cfg = CFG_GOAL
-        save_path = "/models/sim/td3_goal/ur5e/pnp/"
-        log_path  = "/logs/sim/td3_goal/ur5e/pnp/"
-        ModelCls = TD3_GOAL
+        cfg = CFG_GOAL_TD3 if args.algo == "td3" else CFG_GOAL_SAC
+        save_path = "/models/sim/td3_goal/ur5e/reach/" if args.algo == "td3" else "/models/sim/sac_goal/ur5e/reach/"
+        log_path  = "/logs/sim/td3_goal/ur5e/reach/"   if args.algo == "td3" else "/logs/sim/sac_goal/ur5e/reach/"
+        ModelCls = TD3_GOAL if args.algo == "td3" else SAC_GOAL
     else:
-        cfg = CFG_STD
-        save_path = "/models/sim/td3/ur5e/pnp/"
-        log_path  = "/logs/sim/td3/ur5e/pnp/"
-        ModelCls = TD3
+        cfg = CFG_STD_TD3 if args.algo == "td3" else CFG_STD_SAC
+        save_path = "/models/sim/td3/ur5e/reach/" if args.algo == "td3" else "/models/sim/sac/ur5e/reach/"
+        log_path  = "/logs/sim/td3/ur5e/reach/"   if args.algo == "td3" else "/logs/sim/sac/ur5e/reach/"
+        ModelCls = TD3 if args.algo == "td3" else SAC
 
     model = ModelCls(env, save_path, log_path, model_pkg_path=pkg_path,
                      config_file_pkg=pkg_path, config_filename=cfg)

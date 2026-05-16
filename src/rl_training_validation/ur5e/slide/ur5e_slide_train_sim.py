@@ -1,37 +1,29 @@
 #!/usr/bin/env python3
 """
-Train an SB3 policy on the UR5e sim Pick-and-Place task.
+Train an SB3 TD3 policy on the UR5e sim Slide task.
 
-Standard env id:  ``UniROS-UR5ePnPSim-v0``
-Goal env id:      ``UniROS-UR5ePnPGoalSim-v0``
+Standard env id:  ``UniROS-UR5eSlideSim-v0``
+Goal env id:      ``UniROS-UR5eSlideGoalSim-v0``
 
-Requires Gazebo + roscore + the UR5e workspace world (provides the
-workbench the cube spawns onto). Bring it up like:
+Requires Gazebo + roscore to already be running with the
+rl_environments-owned UR5 workbench world (same workbench as Push;
+shared across all UR5/UR5e tasks). Bring it up like:
 
+    export GAZEBO_MODEL_PATH=$(rospack find rl_environments)/models:$GAZEBO_MODEL_PATH
     roslaunch gazebo_ros empty_world.launch \\
         world_name:=$(rospack find rl_environments)/worlds/ur5_workspace.world
 
-The env class launches the UR5e MoveIt stack itself. The UR5e +
-Robotiq 85 URDF (composed via
-``rl_environments/urdf/ur5e_robotiq85_grasp.urdf.xacro``) pulls in the
-local ur5_envs and grippers packages via $(find ...) — those must be
-on ROS_PACKAGE_PATH.
-
-GRASP STABILITY: the bundled URDF already includes a Gazebo grasp
-plugin (attach_steps=2, detach_steps=2, min_contact_count=3). If
-grasp behaves unexpectedly during training, tune those parameters
-in
-``ur5_envs/ur5e_robot_description/urdf/ur5e_robotiq85_gripper.urdf.xacro``.
-
-TD3 / TD3_GOAL pipeline + standard wrappers (normalise action,
-normalise obs incl. goal spaces for the goal variant, time limit).
+The env class spawns the UR5e + Robotiq 85 gripper from
+``rl_environments/urdf/ur5e_robotiq85_grasp.urdf.xacro``. For Slide
+the Robotiq is held closed (``init_close_gripper = [0.8]``) and used
+as a flat pusher to impart momentum on the cube. See the UR5e push
+train script for why the workbench world is required.
 """
 from __future__ import annotations
 
 import argparse
 import sys
 
-import rospy
 import gymnasium as gym
 
 import rl_environments  # noqa: F401  trigger registration
@@ -48,10 +40,10 @@ from multiros.wrappers.normalize_obs_wrapper import NormalizeObservationWrapper
 from multiros.wrappers.time_limit_wrapper import TimeLimitWrapper
 
 
-ENV_STD  = "UniROS-UR5ePnPSim-v0"
-ENV_GOAL = "UniROS-UR5ePnPGoalSim-v0"
-CFG_STD  = "ur5e_pnp_td3.yaml"
-CFG_GOAL = "ur5e_pnp_td3_goal.yaml"
+ENV_STD = "UniROS-UR5eSlideSim-v0"
+ENV_GOAL = "UniROS-UR5eSlideGoalSim-v0"
+CFG_STD = "ur5e_slide_td3.yaml"
+CFG_GOAL = "ur5e_slide_td3_goal.yaml"
 
 
 def parse_args() -> argparse.Namespace:
@@ -101,13 +93,13 @@ def main() -> int:
     pkg_path = "rl_training_validation"
     if args.goal:
         cfg = CFG_GOAL
-        save_path = "/models/sim/td3_goal/ur5e/pnp/"
-        log_path  = "/logs/sim/td3_goal/ur5e/pnp/"
+        save_path = "/models/sim/td3_goal/ur5e/slide/"
+        log_path = "/logs/sim/td3_goal/ur5e/slide/"
         ModelCls = TD3_GOAL
     else:
         cfg = CFG_STD
-        save_path = "/models/sim/td3/ur5e/pnp/"
-        log_path  = "/logs/sim/td3/ur5e/pnp/"
+        save_path = "/models/sim/td3/ur5e/slide/"
+        log_path = "/logs/sim/td3/ur5e/slide/"
         ModelCls = TD3
 
     model = ModelCls(env, save_path, log_path, model_pkg_path=pkg_path,

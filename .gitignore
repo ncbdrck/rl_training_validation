@@ -1,1 +1,47 @@
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+
+# Test + lint caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Build artifacts
+build/
+dist/
+.eggs/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.~lock.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Local-only catkin in-tree builds
+/build/
+/devel/
+/install/
+.catkin_workspace
+
+# Note: trained model artifacts under models/ are tracked via git-lfs
+# (see .gitattributes — *.pkl is LFS-filtered). Do not gitignore the
+# `models/` tree without first deciding whether the staged artifacts
+# should be unstaged.

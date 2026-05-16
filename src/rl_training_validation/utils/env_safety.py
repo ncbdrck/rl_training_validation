@@ -58,7 +58,7 @@ def _import_gym():
 # Env-id helpers
 # ---------------------------------------------------------------------------
 
-_ROBOT_CAMEL = {"rx200": "RX200", "ned2": "Ned2", "ur5": "UR5"}
+_ROBOT_CAMEL = {"rx200": "RX200", "ned2": "Ned2", "ur5": "UR5", "ur5e": "UR5e"}
 _TASK_CAMEL = {"reach": "Reach", "push": "Push", "pnp": "PnP", "slide": "Slide"}
 
 
@@ -78,7 +78,10 @@ def parse_env_id(env_id: str) -> Optional[Tuple[str, str, str, bool]]:
     if not env_id.startswith("UniROS-") or not env_id.endswith("-v0"):
         return None
     body = env_id[len("UniROS-"):-len("-v0")]
-    for robot_lc, robot_cm in _ROBOT_CAMEL.items():
+    # Match the LONGEST robot prefix first. "UR5e" must win over "UR5"
+    # when the body is e.g. "UR5ePnPSim".
+    sorted_robots = sorted(_ROBOT_CAMEL.items(), key=lambda kv: -len(kv[1]))
+    for robot_lc, robot_cm in sorted_robots:
         if body.startswith(robot_cm):
             rest = body[len(robot_cm):]
             break

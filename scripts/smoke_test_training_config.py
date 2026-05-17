@@ -77,7 +77,7 @@ def test_env_safety_helpers() -> int:
     for eid, want in [
         ("UniROS-RX200ReachSim-v0", ("rx200", "sim", "reach", False)),
         ("UniROS-Ned2ReachGoalSim-v0", ("ned2", "sim", "reach", True)),
-        ("UniROS-UR5PnPGoalReal-v0", ("ur5", "real", "pnp", True)),
+        ("UniROS-UR5ePnPGoalReal-v0", ("ur5e", "real", "pnp", True)),
     ]:
         got = parse_env_id(eid)
         if got != want:

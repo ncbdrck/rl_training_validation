@@ -76,7 +76,7 @@ def main() -> int:
 
     print(f"\nUniROS env registry — {len(implemented)} / {len(all_ids)} implemented\n"
           f"{'=' * 60}")
-    for robot in ("rx200", "ned2", "ur5"):
+    for robot in ("rx200", "ned2", "ur5e"):
         entries = by_robot.get(robot, [])
         if not entries:
             continue

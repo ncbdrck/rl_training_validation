@@ -35,6 +35,9 @@ Thumbs.db
 *.log
 logs/
 
+# models
+models/
+
 # Local-only catkin in-tree builds
 /build/
 /devel/

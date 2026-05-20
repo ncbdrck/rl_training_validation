@@ -8,7 +8,7 @@ Pure registry-based: every env that `rl_environments` registers is
 runnable here. There is no separate "implementation-status table" —
 if `gym.envs.registry` contains it, the scripts can drive it.
 
-## Currently registered envs (24)
+## Currently registered envs (26)
 
 | Robot | Task | Std (sim) | Goal (sim) | Std (real) | Goal (real) |
 |---|---|---|---|---|---|
@@ -18,7 +18,7 @@ if `gym.envs.registry` contains it, the scripts can drive it.
 | RX200 (zed2)   | Reach | `RX200Zed2ReacherSim-v0` | `RX200Zed2ReacherGoalSim-v0` | — | — |
 | RX200 (zed2)   | Push  | `RX200Zed2PushSim-v0` | `RX200Zed2PushGoalSim-v0` | — | — |
 | RX200 (zed2)   | PnP   | `RX200Zed2PnPSim-v0` | `RX200Zed2PnPGoalSim-v0` | — | — |
-| Ned2 (kinect)  | Reach | `NED2ReacherSim-v0` | `NED2ReacherGoalSim-v0` | — | — |
+| Ned2 (kinect)  | Reach | `NED2ReacherSim-v0` | `NED2ReacherGoalSim-v0` | `NED2ReacherReal-v0` | `NED2ReacherGoalReal-v0` |
 | Ned2 (kinect)  | Push  | `NED2PushSim-v0` | `NED2PushGoalSim-v0` | — | — |
 | Ned2 (kinect)  | PnP   | `NED2PnPSim-v0` | `NED2PnPGoalSim-v0` | — | — |
 

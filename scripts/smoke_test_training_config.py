@@ -54,6 +54,8 @@ EXPECTED_IDS = {
     "NED2PnPSim-v0", "NED2PnPGoalSim-v0",
     # RX200 real reach
     "RX200ReacherReal-v0", "RX200ReacherGoalReal-v0",
+    # Ned2 real reach — new this session
+    "NED2ReacherReal-v0", "NED2ReacherGoalReal-v0",
     # RX200 real push + pnp (cube tracking via /cube_pose topic)
     "RX200PushReal-v0", "RX200PushGoalReal-v0",
     "RX200PnPReal-v0", "RX200PnPGoalReal-v0",

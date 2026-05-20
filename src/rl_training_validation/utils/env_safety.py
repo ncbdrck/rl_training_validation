@@ -137,6 +137,52 @@ def enforce_real_motion_consent(env_id: str, allow_real_flag: bool) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Cube-tracker CLI plumbing for push / pnp real scripts
+# ---------------------------------------------------------------------------
+
+def add_cube_tracker_cli(parser: argparse.ArgumentParser) -> None:
+    """Add --cube-tracker / --cube-tracker-camera / --cube-tracker-target-frame.
+
+    Default behaviour is unchanged: vision pipeline is external. Pass
+    ``--cube-tracker auto`` to have the env roslaunch
+    ``rl_envs_cube_tracker/<camera>.launch`` automatically.
+    """
+    parser.add_argument(
+        "--cube-tracker",
+        choices=("none", "auto"),
+        default="none",
+        help=(
+            "Vision pipeline source. 'none' (default): assume an external "
+            "publisher on --cube-pose-topic. 'auto': env roslaunches "
+            "rl_envs_cube_tracker on env construction."
+        ),
+    )
+    parser.add_argument(
+        "--cube-tracker-camera",
+        choices=("kinect2", "zed2"),
+        default="kinect2",
+        help="Which camera launch file rl_envs_cube_tracker uses (only with --cube-tracker auto).",
+    )
+    parser.add_argument(
+        "--cube-tracker-target-frame",
+        default="",
+        help=(
+            "If non-empty, rl_envs_cube_tracker TF-transforms /cube_pose into "
+            "this frame (e.g. rx200/base_link). Requires extrinsic calibration; "
+            "see rl_envs_cube_tracker/config/extrinsics/README.md."
+        ),
+    )
+
+
+def apply_cube_tracker_kwargs(env_kwargs: dict, args: argparse.Namespace) -> dict:
+    """Merge cube-tracker CLI args into ``env_kwargs``. Returns it for chaining."""
+    env_kwargs["auto_launch_cube_tracker"] = (args.cube_tracker == "auto")
+    env_kwargs["cube_tracker_camera"] = args.cube_tracker_camera
+    env_kwargs["cube_tracker_target_frame"] = args.cube_tracker_target_frame
+    return env_kwargs
+
+
+# ---------------------------------------------------------------------------
 # Combined "is this env safe to construct now?" check
 # ---------------------------------------------------------------------------
 

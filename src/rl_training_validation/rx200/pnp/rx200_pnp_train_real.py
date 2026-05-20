@@ -24,7 +24,8 @@ import uniros as gym  # paper §6.1: subprocess-isolated env proxy; drop-in for 
 import rl_environments  # noqa: F401  trigger registration
 
 from rl_training_validation.utils.env_safety import (
-    add_real_motion_cli, check_env_constructable, is_goal_env,
+    add_cube_tracker_cli, add_real_motion_cli, apply_cube_tracker_kwargs,
+    check_env_constructable, is_goal_env,
 )
 
 from sb3_ros_support.td3 import TD3
@@ -52,6 +53,7 @@ def parse_args() -> argparse.Namespace:
                    help="Enable the intermediate-lift goal curriculum.")
     p.add_argument("--cube-pose-topic", default="/cube_pose",
                    help="Topic publishing the cube's geometry_msgs/PoseStamped (default /cube_pose).")
+    add_cube_tracker_cli(p)
     add_real_motion_cli(p)
     return p.parse_args()
 
@@ -73,6 +75,7 @@ def main() -> int:
         multi_goal=args.multi_goal,
         cube_pose_topic=args.cube_pose_topic,
     )
+    apply_cube_tracker_kwargs(env_kwargs, args)
     if args.reward_type:
         env_kwargs["reward_type"] = args.reward_type
     elif is_goal_env(env_id):

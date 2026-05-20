@@ -173,6 +173,36 @@ env — use whichever you prefer: `aruco_ros`, AprilTag (`apriltag_ros`),
 mocap (OptiTrack / Vicon driver), or a deep-learning detector. Wire it
 up to publish `PoseStamped` and the env Just Works.
 
+##### Sibling package: `rl_envs_cube_tracker`
+
+For a turnkey AprilTag pipeline, use
+[`rl_envs_cube_tracker`](../rl_envs_cube_tracker/README.md). Print
+`tag36h11` ID 0 at 30 mm, stick it on the cube, and:
+
+```bash
+# Separate terminal (the documented "external" pattern):
+roslaunch rl_envs_cube_tracker kinect2.launch \
+    target_frame:=rx200/base_link
+```
+
+Or have the env auto-launch it for you (opt-in via CLI):
+
+```bash
+rosrun rl_training_validation rx200_push_train_real.py \
+    --allow-real-robot-motion \
+    --cube-tracker auto \
+    --cube-tracker-camera kinect2 \
+    --cube-tracker-target-frame rx200/base_link
+```
+
+`--cube-tracker auto` makes the env roslaunch the tracker (registered
+with the same managed-process registry as roscore + interbotix_driver,
+so `env.close` reaps it). Default is `none` to preserve the "vision is
+external" contract for mocap / YOLO / custom-detector users.
+
+Calibrate the camera extrinsic before relying on `--cube-tracker-target-frame`:
+see [`rl_envs_cube_tracker/config/extrinsics/README.md`](../rl_envs_cube_tracker/config/extrinsics/README.md).
+
 #### Validate a trained policy on real
 
 ```bash

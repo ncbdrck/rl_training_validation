@@ -56,6 +56,9 @@ EXPECTED_IDS = {
     "RX200ReacherReal-v0", "RX200ReacherGoalReal-v0",
     # Ned2 real reach — new this session
     "NED2ReacherReal-v0", "NED2ReacherGoalReal-v0",
+    # Ned2 real push + pnp — new this session
+    "NED2PushReal-v0", "NED2PushGoalReal-v0",
+    "NED2PnPReal-v0", "NED2PnPGoalReal-v0",
     # RX200 real push + pnp (cube tracking via /cube_pose topic)
     "RX200PushReal-v0", "RX200PushGoalReal-v0",
     "RX200PnPReal-v0", "RX200PnPGoalReal-v0",
@@ -177,10 +180,16 @@ def test_cube_tracker_kwargs() -> int:
     import inspect
 
     target_modules = [
+        # RX200 real push + pnp
         ("rl_environments.rx200.real.task_envs.push.rx200_push_real", "RX200PushEnvReal"),
         ("rl_environments.rx200.real.task_envs.push.rx200_push_goal_real", "RX200PushGoalEnvReal"),
         ("rl_environments.rx200.real.task_envs.pnp.rx200_pnp_real", "RX200PnPEnvReal"),
         ("rl_environments.rx200.real.task_envs.pnp.rx200_pnp_goal_real", "RX200PnPGoalEnvReal"),
+        # Ned2 real push + pnp
+        ("rl_environments.ned2.real.task_envs.push.ned2_push_real", "NED2PushEnvReal"),
+        ("rl_environments.ned2.real.task_envs.push.ned2_push_goal_real", "NED2PushGoalEnvReal"),
+        ("rl_environments.ned2.real.task_envs.pnp.ned2_pnp_real", "NED2PnPEnvReal"),
+        ("rl_environments.ned2.real.task_envs.pnp.ned2_pnp_goal_real", "NED2PnPGoalEnvReal"),
     ]
     required_kwargs = {
         "auto_launch_cube_tracker",
@@ -214,7 +223,7 @@ def test_cube_tracker_kwargs() -> int:
             print(f"  FAIL: {cls.__name__} missing kwargs {sorted(missing)}")
             issues += 1
     if issues == 0:
-        print(f"  ok: all 4 real envs expose {sorted(required_kwargs)}")
+        print(f"  ok: all {len(target_modules)} real envs expose {sorted(required_kwargs)}")
     return issues
 
 

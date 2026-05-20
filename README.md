@@ -8,13 +8,13 @@ Pure registry-based: every env that `rl_environments` registers is
 runnable here. There is no separate "implementation-status table" —
 if `gym.envs.registry` contains it, the scripts can drive it.
 
-## Currently registered envs (16)
+## Currently registered envs (20)
 
 | Robot | Task | Std (sim) | Goal (sim) | Std (real) | Goal (real) |
 |---|---|---|---|---|---|
 | RX200 (kinect) | Reach | `RX200ReacherSim-v0` | `RX200ReacherGoalSim-v0` | `RX200ReacherReal-v0` | `RX200ReacherGoalReal-v0` |
-| RX200 (kinect) | Push  | `RX200PushSim-v0` | `RX200PushGoalSim-v0` | — | — |
-| RX200 (kinect) | PnP   | `RX200PnPSim-v0` | `RX200PnPGoalSim-v0` | — | — |
+| RX200 (kinect) | Push  | `RX200PushSim-v0` | `RX200PushGoalSim-v0` | `RX200PushReal-v0` | `RX200PushGoalReal-v0` |
+| RX200 (kinect) | PnP   | `RX200PnPSim-v0` | `RX200PnPGoalSim-v0` | `RX200PnPReal-v0` | `RX200PnPGoalReal-v0` |
 | RX200 (zed2)   | Reach | `RX200Zed2ReacherSim-v0` | `RX200Zed2ReacherGoalSim-v0` | — | — |
 | RX200 (zed2)   | Push  | `RX200Zed2PushSim-v0` | `RX200Zed2PushGoalSim-v0` | — | — |
 | RX200 (zed2)   | PnP   | `RX200Zed2PnPSim-v0` | `RX200Zed2PnPGoalSim-v0` | — | — |
@@ -22,6 +22,14 @@ if `gym.envs.registry` contains it, the scripts can drive it.
 
 PnP envs include `is_grasped` derived obs, grasp-aware layered dense
 reward, and a `multi_goal` flag for intermediate-lift curriculum.
+
+Real-side push and PnP track the cube via an externally-published
+`geometry_msgs/PoseStamped` on `/cube_pose` (configurable via
+`--cube-pose-topic`). When no message is received within
+`cube_pose_timeout_s`, the env falls back to the YAML `cube_init_pos`
+and emits a throttled warning — runnable for dry-run / code-review
+even when no vision pipeline is wired up. Wire up aruco_ros,
+AprilTag, mocap, or your detector of choice for actual cube tracking.
 
 NED2 push / pnp and UR5e (all tasks) are referenced in stub train/validate
 scripts but not yet registered in `rl_environments`. `check_env_constructable`
@@ -126,7 +134,7 @@ rosrun rl_training_validation rx200_reach_validate_real.py --episodes 10 \
     --allow-real-robot-motion
 ```
 
-### RX200 real Reach
+### RX200 real tasks
 
 Real-robot motion is double-gated:
 
@@ -137,8 +145,39 @@ Real-robot motion is double-gated:
 Without both, the script aborts and no interbotix driver is launched.
 
 ```bash
+# Reach (no cube needed):
 rosparam set /allow_real_robot_motion true
 rosrun rl_training_validation rx200_reach_train_real.py --allow-real-robot-motion
+rosrun rl_training_validation rx200_reach_train_real.py --allow-real-robot-motion --goal   # HER
+
+# Push (needs cube pose on /cube_pose, default topic):
+rosrun rl_training_validation rx200_push_train_real.py --allow-real-robot-motion
+rosrun rl_training_validation rx200_push_train_real.py --allow-real-robot-motion --goal
+# Override the cube-pose topic:
+rosrun rl_training_validation rx200_push_train_real.py --allow-real-robot-motion --cube-pose-topic /aruco/cube_pose
+
+# Pick-and-Place (also needs cube tracking + gripper):
+rosrun rl_training_validation rx200_pnp_train_real.py --allow-real-robot-motion
+rosrun rl_training_validation rx200_pnp_train_real.py --allow-real-robot-motion --goal --multi-goal
+```
+
+#### Cube tracking on real
+
+Real push and PnP envs subscribe to `/cube_pose` (overridable via
+`--cube-pose-topic`) expecting `geometry_msgs/PoseStamped`. If no
+message arrives within `cube_pose_timeout_s` (default 1.0 s, set in
+`rx200_{push,pnp}_task_config.yaml`), the env falls back to
+`cube_init_pos` (default `[0.25, 0.0, 0.015]`) and emits a throttled
+warning. Cube-tracking pipeline is **deliberately external** to the
+env — use whichever you prefer: `aruco_ros`, AprilTag (`apriltag_ros`),
+mocap (OptiTrack / Vicon driver), or a deep-learning detector. Wire it
+up to publish `PoseStamped` and the env Just Works.
+
+#### Validate a trained policy on real
+
+```bash
+rosrun rl_training_validation rx200_push_validate_real.py --episodes 10 --allow-real-robot-motion
+rosrun rl_training_validation rx200_pnp_validate_real.py  --episodes 10 --allow-real-robot-motion --goal --multi-goal
 ```
 
 ## Repository layout

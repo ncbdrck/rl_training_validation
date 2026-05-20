@@ -1,23 +1,118 @@
 #!/usr/bin/env python3
 """
-Stub: RX200 Push (real) — train.
+Train an SB3 policy on the RX200 *real* Push task.
 
-This task is registered as ``UniROS-RX200PushReal-v0`` but routes to
-:class:`UnimplementedRLEnv`. Running this script prints a clear
-message and exits without constructing any env. To unblock:
-update ``rl_environments/common/env_status.py`` AFTER you have
-actually implemented and tested the env class.
+Real motion is double-gated:
+
+  1. ``check_env_constructable`` refuses to construct any ``...Real`` env
+     unless ``--allow-real-robot-motion`` is passed on the command line.
+  2. ``rl_environments.common.safety.require_real_robot_flag`` (if
+     wired in this branch of the repo) gates the env's __init__ +
+     every safe-action call.
+
+Real push additionally requires a vision pipeline publishing the cube
+pose on ``geometry_msgs/PoseStamped`` topic (default ``/cube_pose``).
+Without one the env falls back to the YAML ``cube_init_pos`` and
+prints a throttled warning — usable for dry-runs but obviously not
+for training. Wire up aruco_ros / AprilTag / mocap / deep detector
+of your choice before training for real.
+
+Default behaviour without ``--allow-real-robot-motion`` is a clear
+SystemExit with no motion.
 """
 from __future__ import annotations
 
+import argparse
 import sys
 
-from rl_training_validation._blocked_stub import run_blocked_stub
+import rospy
+# import gymnasium as gym  # uncomment + comment uniros below to test against vanilla Gymnasium
+import uniros as gym  # paper §6.1: subprocess-isolated env proxy; drop-in for gym.Env
+
+import rl_environments  # noqa: F401  trigger registration
+
+from rl_training_validation.utils.env_safety import (
+    add_real_motion_cli, check_env_constructable, is_goal_env,
+)
+
+from sb3_ros_support.td3 import TD3
+from sb3_ros_support.td3_goal import TD3_GOAL
+
+from realros.wrappers.normalize_action_wrapper import NormalizeActionWrapper
+from realros.wrappers.normalize_obs_wrapper import NormalizeObservationWrapper
+from realros.wrappers.time_limit_wrapper import TimeLimitWrapper
+
+
+ENV_STD = "RX200PushReal-v0"
+ENV_GOAL = "RX200PushGoalReal-v0"
+CFG_STD = "rx200_push_td3.yaml"
+CFG_GOAL = "rx200_push_td3_goal.yaml"
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--goal", action="store_true",
+                   help="Use the goal-conditioned env + HER.")
+    p.add_argument("--seed", type=int, default=10)
+    p.add_argument("--max-episode-steps", type=int, default=100)
+    p.add_argument("--reward-type", default=None)
+    p.add_argument("--cube-pose-topic", default="/cube_pose",
+                   help="Topic publishing the cube's geometry_msgs/PoseStamped (default /cube_pose).")
+    add_real_motion_cli(p)
+    return p.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    env_id = ENV_GOAL if args.goal else ENV_STD
+    check_env_constructable(env_id, allow_real_flag=args.allow_real_robot_motion)
+
+    env_kwargs = dict(
+        seed=args.seed,
+        delta_action=True,
+        ee_action_type=False,
+        environment_loop_rate=10.0,
+        action_cycle_time=0.500,
+        use_smoothing=False,
+        action_speed=0.100,
+        log_internal_state=False,
+        cube_pose_topic=args.cube_pose_topic,
+    )
+    if args.reward_type:
+        env_kwargs["reward_type"] = args.reward_type
+    elif is_goal_env(env_id):
+        env_kwargs["reward_type"] = "Sparse"
+    else:
+        env_kwargs["reward_type"] = "Dense"
+
+    env = gym.make(env_id, **env_kwargs)
+    env = NormalizeActionWrapper(env)
+    if is_goal_env(env_id):
+        env = NormalizeObservationWrapper(env, normalize_goal_spaces=True)
+    else:
+        env = NormalizeObservationWrapper(env)
+    env = TimeLimitWrapper(env, max_episode_steps=args.max_episode_steps)
+    env.reset()
+
+    pkg_path = "rl_training_validation"
+    if args.goal:
+        cfg = CFG_GOAL
+        save_path = "/models/real/td3_goal/rx200/push/"
+        log_path = "/logs/real/td3_goal/rx200/push/"
+        ModelCls = TD3_GOAL
+    else:
+        cfg = CFG_STD
+        save_path = "/models/real/td3/rx200/push/"
+        log_path = "/logs/real/td3/rx200/push/"
+        ModelCls = TD3
+
+    model = ModelCls(env, save_path, log_path, model_pkg_path=pkg_path,
+                     config_file_pkg=pkg_path, config_filename=cfg)
+    model.train()
+    model.save_model()
+    model.close_env()
+    return 0
 
 
 if __name__ == "__main__":
-    sys.exit(run_blocked_stub(
-        "RX200PushReal-v0",
-        real=True,
-        reason="RX200 real push needs external object perception (ArUco/AprilTag/mocap) — not wired.",
-    ))
+    sys.exit(main())

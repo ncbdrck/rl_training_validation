@@ -50,6 +50,8 @@ EXPECTED_IDS = {
     "NED2ReacherSim-v0", "NED2ReacherGoalSim-v0",
     # Ned2 push (kinect) — new this session
     "NED2PushSim-v0", "NED2PushGoalSim-v0",
+    # Ned2 PnP (kinect) — new this session
+    "NED2PnPSim-v0", "NED2PnPGoalSim-v0",
     # RX200 real reach
     "RX200ReacherReal-v0", "RX200ReacherGoalReal-v0",
     # RX200 real push + pnp (cube tracking via /cube_pose topic)

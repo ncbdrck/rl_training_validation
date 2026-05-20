@@ -28,7 +28,8 @@ import argparse
 import sys
 
 import rospy
-import gymnasium as gym
+# import gymnasium as gym  # uncomment + comment uniros below to test against vanilla Gymnasium
+import uniros as gym  # paper §6.1: subprocess-isolated env proxy; drop-in for gym.Env
 
 import rl_environments  # noqa: F401  trigger registration
 
@@ -59,7 +60,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    env_id = "UniROS-RX200ReachGoalReal-v0" if args.goal else "UniROS-RX200ReachReal-v0"
+    env_id = "RX200ReacherGoalReal-v0" if args.goal else "RX200ReacherReal-v0"
     check_env_constructable(env_id, allow_real_flag=args.allow_real_robot_motion)
 
     env_kwargs = dict(

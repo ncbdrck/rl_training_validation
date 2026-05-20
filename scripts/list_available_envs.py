@@ -1,18 +1,15 @@
 #!/usr/bin/env python3
 """
-List which UniROS-... env ids in the rl_environments registry are
-actually IMPLEMENTED today vs. still blocked behind the
-``UnimplementedRLEnv`` placeholder.
+List every RX200 / NED2 / UR5e env id in the ``rl_environments``
+Gymnasium registry.
 
 Pure introspection — no Gazebo, no ROS, no hardware. Safe to run from
 a stock Python interpreter as long as ``rl_environments`` is importable.
 
 Usage::
 
-    python3 scripts/list_available_envs.py            # default table
-    python3 scripts/list_available_envs.py --json     # JSON output
-    python3 scripts/list_available_envs.py --only-implemented
-    python3 scripts/list_available_envs.py --only-blocked
+    python3 scripts/list_available_envs.py          # human-readable table
+    python3 scripts/list_available_envs.py --json   # JSON output
 """
 from __future__ import annotations
 
@@ -24,70 +21,45 @@ from collections import defaultdict
 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
-    group = p.add_mutually_exclusive_group()
-    group.add_argument("--only-implemented", action="store_true")
-    group.add_argument("--only-blocked", action="store_true")
     p.add_argument("--json", dest="as_json", action="store_true",
                    help="emit JSON instead of a human-readable table")
     args = p.parse_args()
 
     try:
         from rl_training_validation.utils.env_safety import (
-            list_implemented, list_unimplemented, parse_env_id,
+            list_implemented, parse_env_id, is_goal_env, is_real,
         )
     except Exception as e:
         print(f"[ERROR] cannot import env_safety helpers: {e}", file=sys.stderr)
         return 1
 
-    implemented = list_implemented()
-    blocked = list_unimplemented()
-    all_ids = sorted(set(implemented) | set(blocked))
+    ids = list_implemented()
 
     if args.as_json:
-        out = {
-            "implemented": implemented,
-            "blocked": blocked,
-            "counts": {
-                "implemented": len(implemented),
-                "blocked": len(blocked),
-                "total": len(all_ids),
-            },
-        }
-        print(json.dumps(out, indent=2))
+        print(json.dumps({"count": len(ids), "ids": ids}, indent=2))
         return 0
 
-    show = set()
-    if args.only_implemented:
-        show.update(implemented)
-    elif args.only_blocked:
-        show.update(blocked)
-    else:
-        show.update(all_ids)
-
-    # Group by robot for readability.
     by_robot: dict = defaultdict(list)
-    for eid in sorted(show):
+    for eid in ids:
         parsed = parse_env_id(eid)
-        if parsed is None:
-            by_robot["?"].append((eid, "implemented" if eid in implemented else "blocked"))
-            continue
-        robot = parsed[0]
-        by_robot[robot].append((eid, "implemented" if eid in implemented else "blocked"))
+        robot = parsed[0] if parsed else "?"
+        by_robot[robot].append(eid)
 
-    print(f"\nUniROS env registry — {len(implemented)} / {len(all_ids)} implemented\n"
-          f"{'=' * 60}")
-    for robot in ("rx200", "ned2", "ur5e"):
+    print(f"\nrl_environments registry — {len(ids)} ids")
+    print("=" * 60)
+    for robot in ("rx200", "ned2", "ur5e", "ur5", "?"):
         entries = by_robot.get(robot, [])
         if not entries:
             continue
         print(f"\n[{robot}]")
-        for eid, status in entries:
-            tag = "✅" if status == "implemented" else "❌"
-            print(f"  {tag}  {eid}")
-
-    if not args.only_implemented and not args.only_blocked:
-        print("\nLegend: ✅ implemented (entry class exists) — "
-              "❌ blocked (constructs to NotImplementedError)")
+        for eid in entries:
+            tags = []
+            if is_goal_env(eid):
+                tags.append("goal")
+            if is_real(eid):
+                tags.append("real")
+            tag_str = f"  ({', '.join(tags)})" if tags else ""
+            print(f"  {eid}{tag_str}")
     return 0
 
 

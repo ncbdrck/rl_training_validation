@@ -17,7 +17,7 @@ from rl_training_validation._blocked_stub import run_blocked_stub
 
 if __name__ == "__main__":
     sys.exit(run_blocked_stub(
-        "UniROS-RX200PushReal-v0",
+        "RX200PushReal-v0",
         real=True,
         reason="RX200 real push needs external object perception (ArUco/AprilTag/mocap) — not wired.",
     ))

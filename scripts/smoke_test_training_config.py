@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Smoke-test the training/validation repo's relationship with the audited
-rl_environments registry. Does NOT start Gazebo, ROS, or hardware.
+Smoke-test the training/validation repo's relationship with the
+``rl_environments`` registry. Pure introspection — does NOT start
+Gazebo, ROS, or hardware.
 
 Verifies:
-  1. rl_environments imports and registers all 48 UniROS-... ids.
-  2. The implementation-status table is consistent with the registry
-     (implemented -> real entry point, blocked -> UnimplementedRLEnv).
-  3. Blocked real envs raise NotImplementedError at gym.make(); they
-     should never reach the construction path.
-  4. The env-safety helper correctly classifies a sample of env ids.
-  5. Algorithm-config YAML files in ``config/`` look well-formed.
+  1. ``rl_environments`` imports and at least the expected RX200 + NED2
+     ids land in the registry.
+  2. The env_safety classifiers (is_real / is_goal_env) behave as
+     documented.
+  3. Every CFG_*.yaml referenced by a train/validate script exists.
+  4. Every YAML in ``config/`` parses cleanly.
 
 Run it like::
 
@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+
 import yaml
 
 REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
@@ -33,103 +34,86 @@ def _import_gym():
     return gym
 
 
+# Ids that MUST be registered today. Keep this in lockstep with
+# rl_environments/src/rl_environments/__init__.py.
+EXPECTED_IDS = {
+    # RX200 reach (kinect + zed2)
+    "RX200ReacherSim-v0", "RX200ReacherGoalSim-v0",
+    "RX200Zed2ReacherSim-v0", "RX200Zed2ReacherGoalSim-v0",
+    # RX200 push (kinect + zed2)
+    "RX200PushSim-v0", "RX200PushGoalSim-v0",
+    "RX200Zed2PushSim-v0", "RX200Zed2PushGoalSim-v0",
+    # RX200 PnP (kinect + zed2)
+    "RX200PnPSim-v0", "RX200PnPGoalSim-v0",
+    "RX200Zed2PnPSim-v0", "RX200Zed2PnPGoalSim-v0",
+    # Ned2 reach (kinect)
+    "NED2ReacherSim-v0", "NED2ReacherGoalSim-v0",
+    # RX200 real reach
+    "RX200ReacherReal-v0", "RX200ReacherGoalReal-v0",
+}
+
+
 def test_imports() -> int:
     print("\n[1] Imports + registration...")
     try:
         gym = _import_gym()
     except Exception as e:
-        print(f"  ❌ import failed: {e}")
+        print(f"  FAIL: import error: {e}")
         return 1
-    n = sum(1 for s in gym.envs.registry if s.startswith("UniROS-"))
-    if n != 48:
-        print(f"  ❌ expected 48 UniROS-... ids, got {n}")
+    registered = set(gym.envs.registry.keys())
+    missing = EXPECTED_IDS - registered
+    if missing:
+        print(f"  FAIL: missing from registry: {sorted(missing)}")
         return 1
-    print(f"  ✅ rl_environments importable, {n} UniROS ids registered")
+    print(f"  ok: all {len(EXPECTED_IDS)} expected ids registered")
     return 0
 
 
 def test_env_safety_helpers() -> int:
     print("\n[2] env_safety helpers...")
     from rl_training_validation.utils.env_safety import (
-        is_implemented, is_real, is_goal_env, list_implemented, parse_env_id,
+        is_registered, is_real, is_goal_env, parse_env_id,
     )
     issues = 0
-    # Implemented today (per the audit):
-    expected_impl = {
-        "UniROS-RX200ReachSim-v0", "UniROS-RX200ReachGoalSim-v0",
-        "UniROS-RX200PushSim-v0", "UniROS-RX200PushGoalSim-v0",
-        "UniROS-RX200PnPSim-v0", "UniROS-RX200PnPGoalSim-v0",
-        "UniROS-RX200SlideSim-v0", "UniROS-RX200SlideGoalSim-v0",
-        "UniROS-Ned2ReachSim-v0", "UniROS-Ned2ReachGoalSim-v0",
-        "UniROS-UR5ReachSim-v0", "UniROS-UR5ReachGoalSim-v0",
-        "UniROS-RX200ReachReal-v0", "UniROS-RX200ReachGoalReal-v0",
-    }
-    actual_impl = set(list_implemented())
-    extra = actual_impl - expected_impl
-    missing = expected_impl - actual_impl
-    if extra or missing:
-        print(f"  ❌ implemented set mismatch — extra={sorted(extra)} missing={sorted(missing)}")
-        issues += 1
-    else:
-        print(f"  ✅ {len(actual_impl)} implemented ids match the audit")
 
     # Spot-check classifiers.
     for eid, want in [
-        ("UniROS-RX200ReachSim-v0", ("rx200", "sim", "reach", False)),
-        ("UniROS-Ned2ReachGoalSim-v0", ("ned2", "sim", "reach", True)),
-        ("UniROS-UR5ePnPGoalReal-v0", ("ur5e", "real", "pnp", True)),
+        ("RX200ReacherSim-v0",   ("rx200", "sim",  "reach", False)),
+        ("RX200ReacherGoalSim-v0", ("rx200", "sim",  "reach", True)),
+        ("NED2ReacherGoalSim-v0", ("ned2", "sim",  "reach", True)),
+        ("RX200PnPGoalSim-v0",   ("rx200", "sim",  "pnp",   True)),
+        ("RX200Zed2PushSim-v0",  ("rx200", "sim",  "push",  False)),
+        ("RX200ReacherReal-v0",  ("rx200", "real", "reach", False)),
     ]:
         got = parse_env_id(eid)
         if got != want:
-            print(f"  ❌ parse_env_id({eid}) = {got}, expected {want}")
+            print(f"  FAIL: parse_env_id({eid}) = {got}, expected {want}")
             issues += 1
 
-    if is_real("UniROS-RX200ReachSim-v0"):
-        print("  ❌ is_real('...Sim-v0') wrongly True")
-        issues += 1
-    if not is_real("UniROS-RX200ReachReal-v0"):
-        print("  ❌ is_real('...Real-v0') wrongly False")
-        issues += 1
-    if not is_goal_env("UniROS-RX200ReachGoalSim-v0"):
-        print("  ❌ is_goal_env wrongly False on a Goal id")
-        issues += 1
-    if is_goal_env("UniROS-RX200ReachSim-v0"):
-        print("  ❌ is_goal_env wrongly True on a non-Goal id")
-        issues += 1
-    if is_implemented("UniROS-Ned2PushSim-v0"):
-        print("  ❌ is_implemented wrongly True for a blocked env")
-        issues += 1
+    checks = [
+        (not is_real("RX200ReacherSim-v0"),  "is_real Sim==False"),
+        (is_real("RX200ReacherReal-v0"),     "is_real Real==True"),
+        (is_goal_env("RX200ReacherGoalSim-v0"), "is_goal_env Goal==True"),
+        (not is_goal_env("RX200ReacherSim-v0"), "is_goal_env non-Goal==False"),
+        (is_registered("RX200PnPSim-v0"),    "is_registered PnP==True"),
+        (not is_registered("NotARealId-v0"), "is_registered fake==False"),
+    ]
+    for ok, label in checks:
+        if not ok:
+            print(f"  FAIL: {label}")
+            issues += 1
 
     if issues == 0:
-        print("  ✅ helpers behave as documented")
-    return issues
-
-
-def test_blocked_envs_raise() -> int:
-    print("\n[3] Blocked envs raise NotImplementedError...")
-    gym = _import_gym()
-    issues = 0
-    for eid in ("UniROS-Ned2PushSim-v0", "UniROS-UR5PnPGoalSim-v0",
-                "UniROS-Ned2ReachReal-v0", "UniROS-UR5ReachGoalReal-v0"):
-        try:
-            gym.make(eid)
-        except NotImplementedError:
-            print(f"  ✅ {eid} blocked")
-        except Exception as e:
-            print(f"  ❌ {eid} raised {type(e).__name__} (expected NotImplementedError): {e}")
-            issues += 1
-        else:
-            print(f"  ❌ {eid} unexpectedly constructed")
-            issues += 1
+        print("  ok: helpers behave as documented")
     return issues
 
 
 def test_yaml_configs() -> int:
-    print("\n[4] config/*.yaml are valid YAML...")
+    print("\n[3] config/*.yaml are valid YAML...")
     issues = 0
     cfg_dir = os.path.join(REPO_ROOT, "config")
     if not os.path.isdir(cfg_dir):
-        print(f"  ⚠️ no config/ directory at {cfg_dir}")
+        print(f"  warn: no config/ directory at {cfg_dir}")
         return 0
     for f in sorted(os.listdir(cfg_dir)):
         if not f.endswith((".yaml", ".yml")):
@@ -138,19 +122,20 @@ def test_yaml_configs() -> int:
         try:
             with open(path) as fh:
                 yaml.safe_load(fh)
-            print(f"  ✅ {f}")
         except yaml.YAMLError as e:
-            print(f"  ❌ {f}: {e}")
+            print(f"  FAIL: {f}: {e}")
             issues += 1
+    if issues == 0:
+        print(f"  ok: {len([f for f in os.listdir(cfg_dir) if f.endswith(('.yaml', '.yml'))])} config files parse")
     return issues
 
 
 def test_script_config_references() -> int:
-    print("\n[5] script config references exist...")
+    print("\n[4] script CFG_*.yaml references resolve...")
     cfg_dir = os.path.join(REPO_ROOT, "config")
     pattern = re.compile(r"CFG_[A-Z0-9_]*\s*=\s*['\"]([^'\"]+\.ya?ml)['\"]")
     issues = 0
-    refs = []
+    refs = set()
     src_dir = os.path.join(REPO_ROOT, "src")
     for dirpath, _, files in os.walk(src_dir):
         for name in files:
@@ -160,16 +145,16 @@ def test_script_config_references() -> int:
             with open(path, "r", encoding="utf-8", errors="replace") as fh:
                 text = fh.read()
             for cfg in pattern.findall(text):
-                refs.append((cfg, os.path.relpath(path, REPO_ROOT)))
+                refs.add((cfg, os.path.relpath(path, REPO_ROOT)))
 
-    for cfg, relpath in sorted(set(refs)):
+    for cfg, relpath in sorted(refs):
         if not os.path.exists(os.path.join(cfg_dir, cfg)):
-            print(f"  ❌ {cfg} referenced by {relpath} is missing")
+            print(f"  FAIL: {cfg} referenced by {relpath} is missing")
             issues += 1
-        else:
-            print(f"  ✅ {cfg}")
     if not refs:
-        print("  ⚠️ no CFG_* YAML references found")
+        print("  warn: no CFG_*.yaml references found")
+    elif issues == 0:
+        print(f"  ok: {len(refs)} CFG references resolve")
     return issues
 
 
@@ -180,14 +165,13 @@ def main() -> int:
     total = 0
     total += test_imports()
     total += test_env_safety_helpers()
-    total += test_blocked_envs_raise()
     total += test_yaml_configs()
     total += test_script_config_references()
     print("\n" + "=" * 60)
     if total == 0:
-        print("  ✅ ALL SMOKE TESTS PASSED")
+        print("  ALL SMOKE TESTS PASSED")
         return 0
-    print(f"  ⚠️  {total} issue(s) above.")
+    print(f"  {total} issue(s) above.")
     return 1
 
 

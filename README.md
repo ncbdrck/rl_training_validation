@@ -1,131 +1,118 @@
-# RL Training & Validation — UniROS Prebuilt Environments
+# RL Training & Validation
 
-[![Documentation Status](https://readthedocs.org/projects/uniros/badge/?version=latest)](https://uniros.readthedocs.io/en/latest/?badge=latest)
-
-📚 **Full documentation**: [uniros.readthedocs.io](https://uniros.readthedocs.io/)
-
-Train / validate the Gymnasium prebuilt tasks from
+Train / validate the Gymnasium environments registered by
 [rl_environments](https://github.com/ncbdrck/rl_environments) using
 Stable Baselines3 + [sb3_ros_support](https://github.com/ncbdrck/sb3_ros_support).
 
-> **Audited implementation status** (kept in lockstep with
-> `rl_environments`):
-> **14 / 48** env ids in the UniROS matrix are actually implemented today;
-> the rest are registered with `UnimplementedRLEnv` and refuse to construct.
-> See `python3 scripts/list_available_envs.py`.
->
-> | Robot | Sim Reach | Sim Push/PnP/Slide | Real Reach | Real Push/PnP/Slide |
-> |-------|-----------|--------------------|------------|---------------------|
-> | RX200 | ✅ std + goal | ✅ std + goal | ✅ std + goal (gated) | ❌ stub |
-> | Ned2  | ✅ std + goal | ❌ stub | ❌ stub | ❌ stub |
-> | UR5   | ✅ std + goal | ❌ stub | ❌ stub | ❌ stub |
->
-> "Stub" means the script prints a clear message and exits without
-> constructing the env. Lift a stub only after the corresponding env
-> class is properly implemented and `env_status.is_implemented` is
-> flipped to True.
+Pure registry-based: every env that `rl_environments` registers is
+runnable here. There is no separate "implementation-status table" —
+if `gym.envs.registry` contains it, the scripts can drive it.
+
+## Currently registered envs (16)
+
+| Robot | Task | Std (sim) | Goal (sim) | Std (real) | Goal (real) |
+|---|---|---|---|---|---|
+| RX200 (kinect) | Reach | `RX200ReacherSim-v0` | `RX200ReacherGoalSim-v0` | `RX200ReacherReal-v0` | `RX200ReacherGoalReal-v0` |
+| RX200 (kinect) | Push  | `RX200PushSim-v0` | `RX200PushGoalSim-v0` | — | — |
+| RX200 (kinect) | PnP   | `RX200PnPSim-v0` | `RX200PnPGoalSim-v0` | — | — |
+| RX200 (zed2)   | Reach | `RX200Zed2ReacherSim-v0` | `RX200Zed2ReacherGoalSim-v0` | — | — |
+| RX200 (zed2)   | Push  | `RX200Zed2PushSim-v0` | `RX200Zed2PushGoalSim-v0` | — | — |
+| RX200 (zed2)   | PnP   | `RX200Zed2PnPSim-v0` | `RX200Zed2PnPGoalSim-v0` | — | — |
+| Ned2 (kinect)  | Reach | `NED2ReacherSim-v0` | `NED2ReacherGoalSim-v0` | — | — |
+
+PnP envs include `is_grasped` derived obs, grasp-aware layered dense
+reward, and a `multi_goal` flag for intermediate-lift curriculum.
+
+NED2 push / pnp and UR5e (all tasks) are referenced in stub train/validate
+scripts but not yet registered in `rl_environments`. `check_env_constructable`
+will surface a clear error if you try to run them.
 
 ## Prerequisites
 
-1. **`rl_environments`** — install from the audited
-   `feature/audit-robot-limits-object-spawning-safety` branch (or
-   later) in the same `catkin_ws`. The training scripts import
-   `rl_environments.common.env_status` and `.common.safety`.
-2. **`sb3_ros_support`** —
-   <https://github.com/ncbdrck/sb3_ros_support> (`gymnasium` branch).
-3. **`UniROS`** (`multiros` + `realros`) — provides the Gazebo /
-   real-robot base envs and the action / observation wrappers used by
-   every training script in this repo.
+1. **`rl_environments`** — sibling catkin package. Provides the env
+   classes + Gymnasium registrations.
+2. **`sb3_ros_support`** — <https://github.com/ncbdrck/sb3_ros_support>
+   (`gymnasium` branch). Provides SB3 wrappers with ROS integration.
+3. **`UniROS`** (`multiros` + `realros`) — Gazebo / real-robot base envs.
 
-## Quick reference
+## Smoke tests
 
-### What can I train right now?
+Run these BEFORE Gazebo. Pure introspection.
 
 ```bash
-# List every env id in the registry and its implementation status:
+# 1) Enumerate the registry from the training repo's perspective.
 python3 scripts/list_available_envs.py
 
-# Only the ones that work today:
-python3 scripts/list_available_envs.py --only-implemented
-```
-
-Currently:
-
-```
-UniROS-RX200ReachSim-v0          UniROS-RX200ReachGoalSim-v0
-UniROS-RX200PushSim-v0           UniROS-RX200PushGoalSim-v0
-UniROS-RX200PnPSim-v0            UniROS-RX200PnPGoalSim-v0
-UniROS-RX200SlideSim-v0          UniROS-RX200SlideGoalSim-v0
-UniROS-Ned2ReachSim-v0           UniROS-Ned2ReachGoalSim-v0
-UniROS-UR5ReachSim-v0            UniROS-UR5ReachGoalSim-v0
-UniROS-RX200ReachReal-v0         UniROS-RX200ReachGoalReal-v0   (real, gated)
-```
-
-### Smoke-check the repo
-
-```bash
-# Pure introspection, no Gazebo, no hardware:
+# 2) Verify env_safety / config wiring (no Gazebo).
 python3 scripts/smoke_test_training_config.py
+
+# 3) Verify every env id referenced by a non-audit script is registered.
 python3 scripts/check_env_availability.py
+
+# 4) Verify every Goal env exposes the GoalEnv hooks (compute_reward / _terminated / _truncated).
 python3 scripts/check_goal_training_setup.py
 ```
 
-### Train: RX200 sim Reach
+### Live smoke (requires Gazebo)
+
+`scripts/live_smoke_envs.py` actually does `gym.make`, `reset`, one
+`step`, and `close` for each env id. Each Gazebo bring-up takes
+~30–60 s, so a full sweep is 5–10 minutes for the 14 sim envs.
+
+```bash
+# Source the workspace first.
+source devel/setup.bash
+
+# Smoke every RX200 / NED2 sim env (skips real envs by default):
+python3 scripts/live_smoke_envs.py
+
+# Subset by substring match:
+python3 scripts/live_smoke_envs.py --filter PnP
+python3 scripts/live_smoke_envs.py --filter Goal
+python3 scripts/live_smoke_envs.py --filter Zed2
+
+# Include real envs (requires hardware + double-gating):
+ALLOW_REAL_ROBOT_MOTION=1 rosparam set /allow_real_robot_motion true
+python3 scripts/live_smoke_envs.py --include-real --allow-real-robot-motion --filter Real
+```
+
+Each env id is gated with a SIGALRM-based timeout (default 120 s for
+`gym.make`, 60 s for `reset`/`step`); a hung env doesn't stall the run.
+
+## Training
 
 In separate terminals:
 
 ```bash
-# 1. ROS master
+# Terminal 1: ROS master
 roscore
 
-# 2. Gazebo (empty world is fine; the env spawns the RX200 URDF itself)
-roslaunch gazebo_ros empty_world.launch
-
-# 3. Trainer (TD3 by default; Reach also supports --algo sac)
+# Terminal 2: trainer. The env launches its own Gazebo subprocess and
+# init_node, so you don't need a pre-running gazebo_ros.
 rosrun rl_training_validation rx200_reach_train_sim.py
 ```
 
-### Train: RX200 sim object tasks
-
-RX200 Push, Pick-and-Place, and Slide are wired for TD3 only in this
-repo. Use `--goal` to switch to the goal-conditioned env and TD3+HER.
+### RX200 sim tasks
 
 ```bash
+# Reach (TD3 default; --algo sac switches to SAC):
+rosrun rl_training_validation rx200_reach_train_sim.py
+rosrun rl_training_validation rx200_reach_train_sim.py --goal       # TD3+HER
+
+# Push (TD3 only in this repo):
 rosrun rl_training_validation rx200_push_train_sim.py
-rosrun rl_training_validation rx200_pnp_train_sim.py --goal
-rosrun rl_training_validation rx200_slide_train_sim.py
+rosrun rl_training_validation rx200_push_train_sim.py --goal        # TD3+HER
+
+# Pick-and-Place:
+rosrun rl_training_validation rx200_pnp_train_sim.py
+rosrun rl_training_validation rx200_pnp_train_sim.py --goal         # TD3+HER
 ```
 
-### Train: goal envs
+### NED2 sim Reach
 
 ```bash
-rosrun rl_training_validation rx200_reach_train_sim.py --goal
+rosrun rl_training_validation ned2_reach_train_sim.py
 rosrun rl_training_validation ned2_reach_train_sim.py --goal
-rosrun rl_training_validation ur5_reach_train_sim.py --goal
-```
-
-HER is only wired into the `*_GOAL` algorithms in `sb3_ros_support`.
-Adding `--goal` switches the env id, the wrapper kwargs (so the dict
-observation is normalised correctly), and the algorithm class.
-
-### Train: RX200 real Reach
-
-Real-robot motion is **double-gated**:
-
-1. The CLI flag ``--allow-real-robot-motion`` (this script).
-2. Either ROS param ``/allow_real_robot_motion=true`` OR env var
-   ``ALLOW_REAL_ROBOT_MOTION=1`` (checked again inside the env's
-   constructor and again before every joint trajectory publish).
-
-Without **both**, the script aborts and the real interbotix driver is
-**not** launched.
-
-```bash
-# Set the rosparam ONCE before running:
-rosparam set /allow_real_robot_motion true
-
-# Now run the trainer with the CLI flag:
-rosrun rl_training_validation rx200_reach_train_real.py --allow-real-robot-motion
 ```
 
 ### Validate a trained policy
@@ -134,9 +121,24 @@ rosrun rl_training_validation rx200_reach_train_real.py --allow-real-robot-motio
 # Sim
 rosrun rl_training_validation rx200_reach_validate_sim.py --episodes 20
 
-# Real (with both gates set as above)
+# Real (double-gated; see safety section)
 rosrun rl_training_validation rx200_reach_validate_real.py --episodes 10 \
     --allow-real-robot-motion
+```
+
+### RX200 real Reach
+
+Real-robot motion is double-gated:
+
+1. CLI flag `--allow-real-robot-motion` on the script.
+2. EITHER ROS param `/allow_real_robot_motion=true` OR env var
+   `ALLOW_REAL_ROBOT_MOTION=1`.
+
+Without both, the script aborts and no interbotix driver is launched.
+
+```bash
+rosparam set /allow_real_robot_motion true
+rosrun rl_training_validation rx200_reach_train_real.py --allow-real-robot-motion
 ```
 
 ## Repository layout
@@ -144,50 +146,58 @@ rosrun rl_training_validation rx200_reach_validate_real.py --episodes 10 \
 ```
 src/rl_training_validation/
   utils/
-    env_safety.py            # implementation-status + real-motion CLI helpers
+    env_safety.py            # registry-based env classification + real-motion gate
     multi_task_env.py        # multi-task wrapper used by multi_train_sim
-  _blocked_stub.py           # shared 'blocked env id' bail-out
-  rx200/ned2/ur5/
-    reach/  push/  pnp/  slide/  # per-task train + validate scripts/stubs
+    multi_task_goal_env.py
+  _blocked_stub.py           # shared 'blocked env id' bail-out (legacy; rarely used now)
+  rx200/  ned2/  ur5e/
+    reach/  push/  pnp/      # per-task train + validate scripts
   multi_task_learning/
     multi_train_sim.py
 config/
-  rx200_*.yaml               # SB3 hyperparams for each algo / env
+  rx200_*.yaml               # SB3 hyperparams per algo / env
+  ned2_*.yaml
+  ur5e_*.yaml
 
 scripts/
-  list_available_envs.py     # iterate the registry
-  check_env_availability.py  # cross-check every referenced env id is implemented
-  check_goal_training_setup.py  # API contract for goal envs (HER)
-  smoke_test_training_config.py # full audit pass
+  list_available_envs.py     # enumerate registry by robot
+  check_env_availability.py  # cross-check script refs vs registry
+  check_goal_training_setup.py  # GoalEnv hook contract
+  smoke_test_training_config.py # full no-Gazebo audit pass
+  live_smoke_envs.py         # gym.make / reset / step / close per env (needs Gazebo)
 ```
 
 ## Safety contract
 
-* Real-robot trainers require both `--allow-real-robot-motion` AND a
-  `/allow_real_robot_motion`-style consent flag visible to the env-side
-  safety module. See
-  [`rl_environments/src/rl_environments/common/safety.py`](https://github.com/ncbdrck/rl_environments).
-* Goal-conditioned env ids must only be passed to `*_GOAL` algorithms
-  (HER). The training scripts in this repo route them automatically;
-  scripts/check_goal_training_setup.py audits that the API contract
-  holds for every implemented goal env.
-* Blocked env ids (Ned2 push, UR5 pnp, etc.) refuse to construct via
-  `UnimplementedRLEnv`. The corresponding `*_train/validate_*.py`
-  scripts are intentional stubs that print a clear message and exit.
-  They should be replaced with real scripts after the underlying env
-  is implemented and `env_status.is_implemented` is flipped to True.
-* Validation scripts surface every `info["sensor_timeout"]=True` (cube
-  perception timeout) and `info["is_success"]` so success rates are
-  tracked correctly.
-* The smoke test checks that every `CFG_* = "*.yaml"` referenced by a
-  non-stub train/validate script exists in `config/`.
+* Real-robot trainers require `--allow-real-robot-motion` (CLI) AND a
+  process-visible consent flag (`ALLOW_REAL_ROBOT_MOTION=1` env var or
+  `/allow_real_robot_motion=true` rosparam). The flag is propagated
+  down to env-side checks.
+* Goal-conditioned env ids (`...Goal{Sim,Real}-v0`) are routed to HER
+  algorithms (TD3_GOAL / SAC_GOAL) automatically by the train scripts.
+  `check_goal_training_setup.py` verifies the GoalEnv hook contract
+  (`compute_reward`, `compute_terminated`, `compute_truncated`) holds
+  for every registered goal env.
+* Sim envs run with per-link FK safety in `execute_action` — every joint
+  trajectory target is checked link-by-link against the table floor
+  before publishing (`_check_action_links_safe` in the RX200/NED2 robot
+  envs). See `rl_environments/config/rx200_reach_task_config.yaml` for
+  the safety params.
 
-## Documentation
+## What's new (May 2026)
 
-The ecosystem documentation lives in
-[`UniROS/docs/`](https://github.com/ncbdrck/UniROS/tree/main/docs).
+* Reach / push / PnP now have **kinect AND zed2 sim variants**, each in
+  std + goal flavour.
+* Push obs extended with **cube linear / angular velocity** (finite-diff)
+  and **cube position relative to EE**.
+* PnP adds **6-DOF action** (5 arm joints + 1 gripper scalar), `is_grasped`
+  **derived obs**, **grasp-aware layered dense reward**, and the **`multi_goal`**
+  flag for intermediate-lift curriculum.
+* `realtime_mode: bool = True` kwarg on every task env — `True` runs the
+  UniROS paper §7 real-time loop (rospy.Timer-driven, matches the real
+  env), `False` runs a standard MDP pause-step-resume loop for clean
+  RL-algorithm benchmarking.
 
 ## Contact
 
-For questions, suggestions, or collaborations:
-[j.kapukotuwa@research.ait.ie](mailto:j.kapukotuwa@research.ait.ie).
+[j.kapukotuwa@research.ait.ie](mailto:j.kapukotuwa@research.ait.ie)

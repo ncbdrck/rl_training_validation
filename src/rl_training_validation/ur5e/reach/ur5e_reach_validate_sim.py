@@ -15,7 +15,8 @@ import argparse
 import sys
 
 import rospy
-import gymnasium as gym
+# import gymnasium as gym  # uncomment + comment uniros below to test against vanilla Gymnasium
+import uniros as gym  # paper §6.1: subprocess-isolated env proxy; drop-in for gym.Env
 
 import rl_environments  # noqa: F401  trigger registration
 
@@ -33,8 +34,8 @@ from multiros.wrappers.normalize_obs_wrapper import NormalizeObservationWrapper
 from multiros.wrappers.time_limit_wrapper import TimeLimitWrapper
 
 
-ENV_STD  = "UniROS-UR5eReachSim-v0"
-ENV_GOAL = "UniROS-UR5eReachGoalSim-v0"
+ENV_STD  = "UR5eReachSim-v0"
+ENV_GOAL = "UR5eReachGoalSim-v0"
 CFG_STD_TD3 = "ur5e_reach_td3.yaml"
 CFG_STD_SAC = "ur5e_reach_sac.yaml"
 CFG_GOAL_TD3 = "ur5e_reach_td3_goal.yaml"

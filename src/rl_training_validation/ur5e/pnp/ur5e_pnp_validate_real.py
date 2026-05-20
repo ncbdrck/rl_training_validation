@@ -14,7 +14,7 @@ from rl_training_validation._blocked_stub import run_blocked_stub
 
 if __name__ == "__main__":
     sys.exit(run_blocked_stub(
-        "UniROS-UR5ePnPReal-v0",
+        "UR5ePnPReal-v0",
         real=True,
         reason="UR5e real env class not yet implemented.",
     ))

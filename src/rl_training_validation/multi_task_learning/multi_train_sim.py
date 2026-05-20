@@ -30,8 +30,8 @@ from sb3_ros_support.td3 import TD3
 
 
 DEFAULT_ENVS = [
-    "UniROS-RX200ReachSim-v0",
-    "UniROS-RX200PushSim-v0",
+    "RX200ReacherSim-v0",
+    "RX200PushSim-v0",
 ]
 
 

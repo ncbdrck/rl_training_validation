@@ -14,7 +14,8 @@ import argparse
 import sys
 
 import rospy
-import gymnasium as gym
+# import gymnasium as gym  # uncomment + comment uniros below to test against vanilla Gymnasium
+import uniros as gym  # paper §6.1: subprocess-isolated env proxy; drop-in for gym.Env
 
 import rl_environments  # noqa: F401  trigger registration
 
@@ -30,8 +31,8 @@ from multiros.wrappers.normalize_obs_wrapper import NormalizeObservationWrapper
 from multiros.wrappers.time_limit_wrapper import TimeLimitWrapper
 
 
-ENV_STD  = "UniROS-RX200PnPSim-v0"
-ENV_GOAL = "UniROS-RX200PnPGoalSim-v0"
+ENV_STD  = "RX200PnPSim-v0"
+ENV_GOAL = "RX200PnPGoalSim-v0"
 CFG_STD  = "rx200_pnp_td3.yaml"
 CFG_GOAL = "rx200_pnp_td3_goal.yaml"
 
@@ -44,6 +45,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--max-episode-steps", type=int, default=100)
     p.add_argument("--gazebo-gui", action="store_true")
     p.add_argument("--reward-type", default=None)
+    p.add_argument("--multi-goal", action="store_true",
+                   help="Enable the intermediate-lift goal curriculum.")
+    p.add_argument("--no-realtime", action="store_true",
+                   help="Use the standard MDP pause-step-resume loop instead "
+                        "of the paper §7 real-time loop.")
     add_real_motion_cli(p)
     return p.parse_args()
 
@@ -63,6 +69,8 @@ def main() -> int:
         use_smoothing=False,
         action_speed=0.100,
         log_internal_state=False,
+        multi_goal=args.multi_goal,
+        realtime_mode=not args.no_realtime,
     )
     if args.reward_type:
         env_kwargs["reward_type"] = args.reward_type

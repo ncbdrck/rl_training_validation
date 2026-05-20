@@ -17,7 +17,7 @@ from rl_training_validation._blocked_stub import run_blocked_stub
 
 if __name__ == "__main__":
     sys.exit(run_blocked_stub(
-        "UniROS-RX200PnPReal-v0",
+        "RX200PnPReal-v0",
         real=True,
         reason="RX200 real PnP needs external object perception + grasp validation — not wired.",
     ))

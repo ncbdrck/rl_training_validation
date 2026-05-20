@@ -17,7 +17,7 @@ from rl_training_validation._blocked_stub import run_blocked_stub
 
 if __name__ == "__main__":
     sys.exit(run_blocked_stub(
-        "UniROS-Ned2PnPReal-v0",
+        "NED2PnPReal-v0",
         real=True,
         reason="Ned2 real env class + grasp + perception not yet implemented.",
     ))

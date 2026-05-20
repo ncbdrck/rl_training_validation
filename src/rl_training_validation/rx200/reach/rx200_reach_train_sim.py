@@ -14,7 +14,8 @@ import argparse
 import sys
 
 import rospy
-import gymnasium as gym
+# import gymnasium as gym  # uncomment + comment uniros below to test against vanilla Gymnasium
+import uniros as gym  # paper §6.1: subprocess-isolated env proxy; drop-in for gym.Env
 
 import rl_environments  # noqa: F401  trigger registration
 
@@ -32,8 +33,8 @@ from multiros.wrappers.normalize_obs_wrapper import NormalizeObservationWrapper
 from multiros.wrappers.time_limit_wrapper import TimeLimitWrapper
 
 
-ENV_STD  = "UniROS-RX200ReachSim-v0"
-ENV_GOAL = "UniROS-RX200ReachGoalSim-v0"
+ENV_STD  = "RX200ReacherSim-v0"
+ENV_GOAL = "RX200ReacherGoalSim-v0"
 CFG_STD_TD3 = "rx200_reacher_td3.yaml"
 CFG_STD_SAC = "rx200_reacher_sac.yaml"
 CFG_GOAL_TD3 = "rx200_reacher_td3_goal.yaml"
@@ -85,24 +86,32 @@ def main() -> int:
     env = TimeLimitWrapper(env, max_episode_steps=args.max_episode_steps)
     env.reset()
 
-    pkg_path = "rl_training_validation"
-    if args.goal:
-        cfg = CFG_GOAL_TD3 if args.algo == "td3" else CFG_GOAL_SAC
-        save_path = "/models/sim/td3_goal/rx200/reach/" if args.algo == "td3" else "/models/sim/sac_goal/rx200/reach/"
-        log_path  = "/logs/sim/td3_goal/rx200/reach/"   if args.algo == "td3" else "/logs/sim/sac_goal/rx200/reach/"
-        ModelCls = TD3_GOAL if args.algo == "td3" else SAC_GOAL
-    else:
-        cfg = CFG_STD_TD3 if args.algo == "td3" else CFG_STD_SAC
-        save_path = "/models/sim/td3/rx200/reach/" if args.algo == "td3" else "/models/sim/sac/rx200/reach/"
-        log_path  = "/logs/sim/td3/rx200/reach/"   if args.algo == "td3" else "/logs/sim/sac/rx200/reach/"
-        ModelCls = TD3 if args.algo == "td3" else SAC
+    # simple test with random actions
+    for _ in range(10):
+        action = env.action_space.sample()
+        obs, reward, done, info = env.step(action)
+        print(f"obs={obs} reward={reward} done={done} info={info}")
+        if done:
+            env.reset()
 
-    model = ModelCls(env, save_path, log_path, model_pkg_path=pkg_path,
-                     config_file_pkg=pkg_path, config_filename=cfg)
-    model.train()
-    model.save_model()
-    model.close_env()
-    return 0
+    # pkg_path = "rl_training_validation"
+    # if args.goal:
+    #     cfg = CFG_GOAL_TD3 if args.algo == "td3" else CFG_GOAL_SAC
+    #     save_path = "/models/sim/td3_goal/rx200/reach/" if args.algo == "td3" else "/models/sim/sac_goal/rx200/reach/"
+    #     log_path  = "/logs/sim/td3_goal/rx200/reach/"   if args.algo == "td3" else "/logs/sim/sac_goal/rx200/reach/"
+    #     ModelCls = TD3_GOAL if args.algo == "td3" else SAC_GOAL
+    # else:
+    #     cfg = CFG_STD_TD3 if args.algo == "td3" else CFG_STD_SAC
+    #     save_path = "/models/sim/td3/rx200/reach/" if args.algo == "td3" else "/models/sim/sac/rx200/reach/"
+    #     log_path  = "/logs/sim/td3/rx200/reach/"   if args.algo == "td3" else "/logs/sim/sac/rx200/reach/"
+    #     ModelCls = TD3 if args.algo == "td3" else SAC
+    #
+    # model = ModelCls(env, save_path, log_path, model_pkg_path=pkg_path,
+    #                  config_file_pkg=pkg_path, config_filename=cfg)
+    # model.train()
+    # model.save_model()
+    # model.close_env()
+    # return 0
 
 
 if __name__ == "__main__":

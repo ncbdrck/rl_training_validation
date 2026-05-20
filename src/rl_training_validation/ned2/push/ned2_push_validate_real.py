@@ -17,7 +17,7 @@ from rl_training_validation._blocked_stub import run_blocked_stub
 
 if __name__ == "__main__":
     sys.exit(run_blocked_stub(
-        "UniROS-Ned2PushReal-v0",
+        "NED2PushReal-v0",
         real=True,
         reason="Ned2 real env class not yet implemented; real cube perception also missing.",
     ))

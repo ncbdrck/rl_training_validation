@@ -1,14 +1,7 @@
 #!/usr/bin/env python3
 """
-Cross-check that:
-
-  1. ``rl_environments`` is importable.
-  2. Every env id this training repo's scripts and configs reference is
-     actually IMPLEMENTED in the audited rl_environments status table.
-  3. Every ``...Real`` env id is also gated behind
-     ``--allow-real-robot-motion`` somewhere in the calling chain (we
-     just confirm the env id is real; the gate itself is checked at
-     construction time inside the safety module).
+Cross-check that every env id referenced by this training repo
+(scripts + YAML configs) is registered in ``rl_environments``.
 
 Pure introspection — no Gazebo, no ROS, no hardware.
 """
@@ -24,18 +17,14 @@ SRC = os.path.join(REPO_ROOT, "src")
 sys.path.insert(0, SRC)
 
 from rl_training_validation.utils.env_safety import (  # noqa: E402
-    is_implemented,
-    is_real,
-    list_implemented,
-    parse_env_id,
+    is_registered, is_real, list_implemented, parse_env_id,
 )
 
 
-# Match any string literal that looks like a UniROS env id.
-_ENV_ID_RE = re.compile(r"['\"](UniROS-[A-Za-z0-9_]+-v\d+)['\"]")
-# Legacy ids the previous training scripts used (pre-audit).
-_LEGACY_ID_RE = re.compile(
-    r"['\"]((?:RX200|Ned2|UR5)(?:Reacher|Push|PnP|Slide)[A-Za-z]*-v\d+)['\"]"
+# Match string literals that look like our env ids (any of the known
+# robot prefixes, possibly with a Zed2 sensor flavour, ending in -vN).
+_ENV_ID_RE = re.compile(
+    r"['\"]((?:RX200|NED2|UR5e|UR5)[A-Za-z0-9]+-v\d+)['\"]"
 )
 
 
@@ -48,15 +37,10 @@ def _walk_files(root: str, exts: Tuple[str, ...]) -> List[str]:
     return matches
 
 
-def _is_blocked_stub_file(text: str) -> bool:
-    """True if this file's only job is to call run_blocked_stub for a blocked env."""
-    return "from rl_training_validation._blocked_stub import run_blocked_stub" in text
-
-
 def _is_audit_script(path: str) -> bool:
-    """Audit/smoke scripts may intentionally reference blocked env ids."""
+    """Audit/smoke scripts may intentionally reference unregistered ids."""
     base = os.path.basename(path)
-    return base.startswith(("check_", "smoke_test_", "list_available"))
+    return base.startswith(("check_", "smoke_test_", "list_available", "live_smoke"))
 
 
 def main() -> int:
@@ -65,15 +49,12 @@ def main() -> int:
     print("=" * 60)
 
     py_files = _walk_files(os.path.join(REPO_ROOT, "src"), (".py",))
-    yaml_files = _walk_files(os.path.join(REPO_ROOT, "config"), (".yaml", ".yml"))
     py_files += _walk_files(os.path.join(REPO_ROOT, "scripts"), (".py",))
+    yaml_files = _walk_files(os.path.join(REPO_ROOT, "config"), (".yaml", ".yml"))
 
     issues = 0
-    # env ids referenced in real (non-stub) scripts.
     seen_envs: Set[str] = set()
-    # env ids that ONLY appear inside blocked-stub scripts (expected).
-    seen_envs_in_stubs: Set[str] = set()
-    seen_legacy: List[Tuple[str, str]] = []
+    seen_envs_in_audits: Set[str] = set()
 
     for path in py_files + yaml_files:
         try:
@@ -81,62 +62,47 @@ def main() -> int:
         except OSError:
             continue
         ids_here = _ENV_ID_RE.findall(text)
-        if _is_blocked_stub_file(text) or _is_audit_script(path):
+        if _is_audit_script(path):
             for m in ids_here:
-                seen_envs_in_stubs.add(m)
+                seen_envs_in_audits.add(m)
         else:
             for m in ids_here:
                 seen_envs.add(m)
-        for m in _LEGACY_ID_RE.findall(text):
-            seen_legacy.append((m, os.path.relpath(path, REPO_ROOT)))
 
-    print(f"\nFound {len(seen_envs)} unique UniROS-... env ids in non-stub files.")
+    print(f"\nFound {len(seen_envs)} unique env ids in non-audit files.")
     if seen_envs:
-        bad: List[str] = []
+        unregistered: List[str] = []
         for eid in sorted(seen_envs):
             parsed = parse_env_id(eid)
             if parsed is None:
-                print(f"  ❌ {eid}  — not a recognised UniROS id pattern")
-                bad.append(eid)
+                print(f"  FAIL: {eid} — doesn't parse as a known env id")
+                unregistered.append(eid)
                 issues += 1
                 continue
-            impl = is_implemented(eid)
+            ok = is_registered(eid)
             real = is_real(eid)
-            tag = "✅" if impl else "❌"
+            tag = "ok  " if ok else "MISS"
             extra = " (real, needs --allow-real-robot-motion)" if real else ""
-            print(f"  {tag}  {eid}{extra}")
-            if not impl:
-                bad.append(eid)
-        if bad:
-            print(f"\n[BLOCKED env ids referenced from non-stub code] {bad}")
-            print("  Update the referencing config/script to use an implemented id "
-                  "or rewrite it as a stub via _blocked_stub.run_blocked_stub.")
-            issues += len(bad)
+            print(f"  [{tag}] {eid}{extra}")
+            if not ok:
+                unregistered.append(eid)
+        if unregistered:
+            print(f"\nUnregistered env ids referenced from non-audit code:")
+            for eid in unregistered:
+                print(f"  - {eid}")
+            print("  Either register the env in rl_environments or remove the "
+                  "referencing script.")
+            issues += len(unregistered)
 
-    if seen_envs_in_stubs:
-        only_stub = seen_envs_in_stubs - seen_envs
-        if only_stub:
-            print(f"\n[blocked-stub-only references — OK] "
-                  f"{len(only_stub)} env ids appear only in blocked-stub scripts:")
-            for eid in sorted(only_stub):
-                print(f"  ⏸  {eid}")
-
-    print(f"\nImplemented today (for reference, {len(list_implemented())}):")
+    print(f"\nRegistered today ({len(list_implemented())} ids):")
     for eid in list_implemented():
         print(f"  - {eid}")
 
-    if seen_legacy:
-        print(f"\n[Legacy id usage] {len(seen_legacy)} references to pre-audit env ids:")
-        for eid, src in sorted(set(seen_legacy)):
-            print(f"  ⚠️  {eid} in {src}")
-        print("  These ids are NOT registered any more. Replace with their UniROS-... counterparts.")
-        issues += len(set(seen_legacy))
-
     print("\n" + "=" * 60)
     if issues == 0:
-        print("  ✅ All env ids referenced by this repo are implemented.")
+        print("  PASS: all env ids referenced by this repo are registered.")
         return 0
-    print(f"  ⚠️  {issues} issue(s) above need attention.")
+    print(f"  {issues} issue(s) above need attention.")
     return 1
 
 

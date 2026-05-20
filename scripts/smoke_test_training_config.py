@@ -161,6 +161,57 @@ def test_script_config_references() -> int:
     return issues
 
 
+def test_cube_tracker_kwargs() -> int:
+    """The 4 real push/pnp envs must expose the auto-launch kwargs that
+    rl_training_validation's --cube-tracker CLI plumbs through to
+    gym.make. Catches signature drift between the train scripts and
+    the env files without needing hardware to construct the env."""
+    print("\n[5] real push/pnp envs expose cube-tracker kwargs...")
+    import importlib
+    import inspect
+
+    target_modules = [
+        ("rl_environments.rx200.real.task_envs.push.rx200_push_real", "RX200PushEnvReal"),
+        ("rl_environments.rx200.real.task_envs.push.rx200_push_goal_real", "RX200PushGoalEnvReal"),
+        ("rl_environments.rx200.real.task_envs.pnp.rx200_pnp_real", "RX200PnPEnvReal"),
+        ("rl_environments.rx200.real.task_envs.pnp.rx200_pnp_goal_real", "RX200PnPGoalEnvReal"),
+    ]
+    required_kwargs = {
+        "auto_launch_cube_tracker",
+        "cube_tracker_camera",
+        "cube_tracker_target_frame",
+    }
+    issues = 0
+    for mod_path, cls_name in target_modules:
+        try:
+            mod = importlib.import_module(mod_path)
+        except Exception as e:
+            print(f"  FAIL: import {mod_path}: {e}")
+            issues += 1
+            continue
+        cls = getattr(mod, cls_name, None)
+        if cls is None:
+            # Class name guess may be wrong; just probe any class in the
+            # module whose __init__ takes cube_pose_topic.
+            for name in dir(mod):
+                obj = getattr(mod, name)
+                if inspect.isclass(obj) and "cube_pose_topic" in inspect.signature(obj.__init__).parameters:
+                    cls = obj
+                    break
+        if cls is None:
+            print(f"  FAIL: no task class found in {mod_path}")
+            issues += 1
+            continue
+        params = set(inspect.signature(cls.__init__).parameters)
+        missing = required_kwargs - params
+        if missing:
+            print(f"  FAIL: {cls.__name__} missing kwargs {sorted(missing)}")
+            issues += 1
+    if issues == 0:
+        print(f"  ok: all 4 real envs expose {sorted(required_kwargs)}")
+    return issues
+
+
 def main() -> int:
     print("=" * 60)
     print("  Training-repo smoke test (no Gazebo, no hardware)")
@@ -170,6 +221,7 @@ def main() -> int:
     total += test_env_safety_helpers()
     total += test_yaml_configs()
     total += test_script_config_references()
+    total += test_cube_tracker_kwargs()
     print("\n" + "=" * 60)
     if total == 0:
         print("  ALL SMOKE TESTS PASSED")

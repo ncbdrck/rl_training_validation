@@ -2,13 +2,12 @@
 """
 Train an SB3 policy on the RX200 *real* Push task.
 
-Real motion is double-gated:
-
-  1. ``check_env_constructable`` refuses to construct any ``...Real`` env
-     unless ``--allow-real-robot-motion`` is passed on the command line.
-  2. ``rl_environments.common.safety.require_real_robot_flag`` (if
-     wired in this branch of the repo) gates the env's __init__ +
-     every safe-action call.
+Real motion is gated by ``check_env_constructable``: it refuses to
+construct any ``...Real`` env unless ``--allow-real-robot-motion`` is
+passed on the command line. The helper also exports
+``ALLOW_REAL_ROBOT_MOTION=1`` so downstream code can read consent
+from a single source — that env var is a propagation of the same
+gate, not an independent channel.
 
 Real push additionally requires a vision pipeline publishing the cube
 pose on ``geometry_msgs/PoseStamped`` topic (default ``/cube_pose``).

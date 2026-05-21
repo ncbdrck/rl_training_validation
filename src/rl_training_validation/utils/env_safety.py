@@ -101,23 +101,29 @@ def add_real_motion_cli(parser: argparse.ArgumentParser) -> None:
         default=False,
         help=(
             "Required to construct any *Real-v0 env in this script. "
-            "Setting this flag exports ALLOW_REAL_ROBOT_MOTION=1 in the "
-            "current process; you must ALSO `rosparam set "
-            "/allow_real_robot_motion true` if the env's safety path "
-            "queries the parameter server."
+            "Setting this flag also exports ALLOW_REAL_ROBOT_MOTION=1 "
+            "in the current process so downstream code can read consent "
+            "from a single source; the env var is a propagation of the "
+            "same gate, not an independent channel."
         ),
     )
 
 
 def enforce_real_motion_consent(env_id: str, allow_real_flag: bool) -> None:
     """
-    Raise SystemExit unless we have BOTH:
-      * the CLI ``--allow-real-robot-motion`` flag,
-      * AND a real-motion consent (env var) visible at the process level.
+    Single-channel consent gate for real-robot env construction.
 
-    Setting the CLI flag exports ``ALLOW_REAL_ROBOT_MOTION=1`` so that
-    any env-side check sees consent without forcing the user to also
-    export it manually.
+    Raises ``SystemExit`` for any real env id unless
+    ``--allow-real-robot-motion`` was passed. When the flag IS passed,
+    also exports ``ALLOW_REAL_ROBOT_MOTION=1`` so downstream code can
+    read consent from a single source.
+
+    The env var is a propagation of the CLI flag, not a second
+    independent channel — you don't need to set it manually, and
+    unsetting it doesn't lock motion out once the flag is already
+    passed. If you want a kill-switch that survives the CLI flag,
+    enforce it inside the real RobotEnv itself (e.g. a rosparam check
+    inside ``_set_init_pose`` / the publish path).
     """
     if not is_real(env_id):
         return
@@ -131,8 +137,7 @@ def enforce_real_motion_consent(env_id: str, allow_real_flag: bool) -> None:
     if not real_motion_consent_present():
         warnings.warn(
             f"--allow-real-robot-motion set but {ALLOW_REAL_ROBOT_FLAG_ENV} "
-            "could not be propagated. Set rosparam "
-            f"{ALLOW_REAL_ROBOT_FLAG_PARAM}=true to be safe."
+            "could not be propagated to os.environ for downstream readers."
         )
 
 

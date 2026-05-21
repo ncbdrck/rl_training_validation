@@ -3,21 +3,17 @@
 Train an SB3 policy on the RX200 *real* Reach task.
 
 This is the explicitly-opt-in real-robot trainer. Real motion is
-double-gated:
-
-  1. ``check_env_constructable`` refuses to construct any ``...Real`` env
-     unless ``--allow-real-robot-motion`` is passed on the command line.
-     The flag also exports ``ALLOW_REAL_ROBOT_MOTION=1`` in this process.
-  2. ``rl_environments.common.safety.require_real_robot_flag`` runs
-     inside the env's ``__init__`` and inside every safe-action call,
-     so the constructor + every joint trajectory publish are both gated.
+gated by ``check_env_constructable``: it refuses to construct any
+``...Real`` env unless ``--allow-real-robot-motion`` is passed on the
+command line. The helper also exports ``ALLOW_REAL_ROBOT_MOTION=1``
+so downstream code can read consent from a single source — that env
+var is a propagation of the same gate, not an independent channel.
 
 You MUST also have:
   * the actual RX200 connected and powered up,
   * the interbotix MoveIt / driver dependencies installed,
-  * rosparam ``/allow_real_robot_motion`` set to true if your launch
-    chain queries the parameter server (the env-side flag-check accepts
-    either rosparam or the env-var, both of which the CLI flag sets).
+  * (optional) ``rosparam set /allow_real_robot_motion true`` if your
+    launch chain prefers to query the parameter server.
 
 Default behaviour without ``--allow-real-robot-motion`` is a clear
 SystemExit with no motion.

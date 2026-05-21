@@ -2,12 +2,12 @@
 """
 Train an SB3 policy on the Ned2 *real* Push task.
 
-Real motion is double-gated (same contract as the RX200 real envs):
-
-  1. ``check_env_constructable`` refuses to construct any ``...Real`` env
-     unless ``--allow-real-robot-motion`` is passed on the command line.
-  2. The env-side safety gate refuses to publish to the niryo driver
-     unless the corresponding rosparam / env var is also set.
+Real motion is gated by ``check_env_constructable``: it refuses to
+construct any ``...Real`` env unless ``--allow-real-robot-motion`` is
+passed on the command line. The helper also exports
+``ALLOW_REAL_ROBOT_MOTION=1`` so downstream code can read consent
+from a single source — that env var is a propagation of the same
+gate, not an independent channel.
 
 Real push additionally requires a vision pipeline publishing the cube
 pose on ``geometry_msgs/PoseStamped`` topic (default ``/cube_pose``).

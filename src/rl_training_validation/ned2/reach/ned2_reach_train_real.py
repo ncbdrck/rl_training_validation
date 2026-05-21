@@ -2,12 +2,12 @@
 """
 Train an SB3 policy on the Ned2 *real* Reach task.
 
-Real motion is double-gated (same contract as the RX200 real envs):
-
-  1. ``check_env_constructable`` refuses to construct any ``...Real`` env
-     unless ``--allow-real-robot-motion`` is passed on the command line.
-  2. The env-side safety gate refuses to publish to the niryo driver
-     unless the corresponding rosparam / env var is also set.
+Real motion is gated by ``check_env_constructable``: it refuses to
+construct any ``...Real`` env unless ``--allow-real-robot-motion`` is
+passed on the command line. The helper also exports
+``ALLOW_REAL_ROBOT_MOTION=1`` so downstream code can read consent
+from a single source — that env var is a propagation of the same
+gate, not an independent channel.
 
 Reach does not need a cube tracker. ``--wrist-camera`` is optional
 (off by default); when set, the env subscribes to the niryo wrist

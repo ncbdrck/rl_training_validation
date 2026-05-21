@@ -173,20 +173,26 @@ swap `train_real` for `validate_real`.
 # Sim
 rosrun rl_training_validation rx200_reach_validate_sim.py --episodes 20
 
-# Real (double-gated; see safety section)
+# Real (requires --allow-real-robot-motion; see safety section)
 rosrun rl_training_validation rx200_reach_validate_real.py --episodes 10 \
     --allow-real-robot-motion
 ```
 
 ### RX200 real tasks
 
-Real-robot motion is double-gated:
+Real-robot motion is gated by the explicit CLI flag
+`--allow-real-robot-motion`. Without it, `check_env_constructable`
+raises `SystemExit` for any `...Real-v0` env id before any driver is
+launched — the env is never constructed, and nothing is published.
 
-1. CLI flag `--allow-real-robot-motion` on the script.
-2. EITHER ROS param `/allow_real_robot_motion=true` OR env var
-   `ALLOW_REAL_ROBOT_MOTION=1`.
-
-Without both, the script aborts and no interbotix driver is launched.
+When the flag IS passed, the helper also exports
+`ALLOW_REAL_ROBOT_MOTION=1` in the process so downstream code can
+read consent from a single source. The env var is a *propagation*
+of the same gate, not an independent second channel — you don't need
+to set it yourself, and unsetting it doesn't lock out motion once
+the flag is already passed. Optional belt-and-braces: also
+`rosparam set /allow_real_robot_motion true` if you have a launch
+chain that prefers to read the rosparam.
 
 ```bash
 # Reach (no cube needed):
@@ -282,10 +288,13 @@ scripts/
 
 ## Safety contract
 
-* Real-robot trainers require `--allow-real-robot-motion` (CLI) AND a
-  process-visible consent flag (`ALLOW_REAL_ROBOT_MOTION=1` env var or
-  `/allow_real_robot_motion=true` rosparam). The flag is propagated
-  down to env-side checks.
+* Real-robot trainers require the explicit CLI flag
+  `--allow-real-robot-motion`. `check_env_constructable` refuses to
+  build any `...Real-v0` env without it, so the script bails out
+  before any driver is launched. The helper also exports
+  `ALLOW_REAL_ROBOT_MOTION=1` so downstream code can read consent
+  from a single source — that env var is a propagation of the same
+  gate, not an independent second channel.
 * Goal-conditioned env ids (`...Goal{Sim,Real}-v0`) are routed to HER
   algorithms (TD3_GOAL / SAC_GOAL) automatically by the train scripts.
   `check_goal_training_setup.py` verifies the GoalEnv hook contract

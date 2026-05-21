@@ -2,21 +2,22 @@
 """
 Train an SB3 policy on the Ned2 sim Push task.
 
-Standard env id:  ``UniROS-Ned2PushSim-v0``
-Goal env id:      ``UniROS-Ned2PushGoalSim-v0``
+Standard env id:  ``NED2PushSim-v0``
+Goal env id:      ``NED2PushGoalSim-v0``
 
-Requires Gazebo + roscore to already be running, with a world that
-contains the Niryo workspace_1 pad. Recommended:
+Recommended bring-up (separate terminal, before this script):
 
-    export GAZEBO_MODEL_PATH=$(rospack find niryo_robot_gazebo)/models:$GAZEBO_MODEL_PATH
-    roslaunch gazebo_ros empty_world.launch \\
-        world_name:=$(rospack find rl_environments)/worlds/ned2_workspace_only.world
+    roscore
+    roslaunch niryo_ned2_description_extras ned2_gazebo.launch
 
-That world ships with rl_environments and contains workspace_1 +
-workspace_grille and NOTHING else, so the env's
-``spawn_cube_in_gazebo("red_cube")`` call has no name collision.
-The bundled ``niryo_cube_world.world`` would conflict on the first
-spawn because it pre-bakes cube_blue / cube_red / cube_green.
+That launch (from the niryo_ned2_description_extras sibling package)
+mounts the Ned2 on the same desk model the RX200 sim uses, adds a
+head-mount Kinect v2 at the same pose, and brings up ros_control with
+the Niryo PID gains. The world has nothing pre-spawned, so the env's
+``spawn_cube_in_gazebo("red_cube")`` reset path has no name collision.
+
+For pnp later, use ``gripper:=true`` (sim push uses the closed wrist /
+end-effector as a flat pusher, no gripper needed).
 
 Mirrors the RX200 push train script — same TD3 / TD3_GOAL pipeline,
 same wrappers (normalise action, normalise obs incl. goal spaces for

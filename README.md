@@ -44,6 +44,13 @@ will surface a clear error if you try to run them.
 2. **`sb3_ros_support`** — <https://github.com/ncbdrck/sb3_ros_support>
    (`gymnasium` branch). Provides SB3 wrappers with ROS integration.
 3. **`UniROS`** (`multiros` + `realros`) — Gazebo / real-robot base envs.
+4. **Robot description-extras packages** (for sim only):
+   - **RX200 sim** → `reactorx200_description` (RX200 + table + kinect2).
+   - **Ned2 sim** → `niryo_ned2_description_extras`
+     (Ned2 + same table + head-mount kinect2 + Niryo PID gains).
+     See `rl_environments/README.md` §3a for install.
+   Real envs don't need these — `niryo_robot_bringup` / interbotix
+   driver handle hardware bring-up.
 
 ## Smoke tests
 

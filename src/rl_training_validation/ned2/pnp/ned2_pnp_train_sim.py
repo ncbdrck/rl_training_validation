@@ -2,17 +2,18 @@
 """
 Train an SB3 policy on the Ned2 sim Pick-and-Place task.
 
-Standard env id:  ``UniROS-Ned2PnPSim-v0``
-Goal env id:      ``UniROS-Ned2PnPGoalSim-v0``
+Standard env id:  ``NED2PnPSim-v0``
+Goal env id:      ``NED2PnPGoalSim-v0``
 
-Requires Gazebo + roscore to already be running with a world that
-contains the Niryo workspace_1 + workspace_grille pads. Recommended:
+Recommended bring-up (separate terminal, before this script):
 
-    export GAZEBO_MODEL_PATH=$(rospack find niryo_robot_gazebo)/models:$GAZEBO_MODEL_PATH
-    roslaunch gazebo_ros empty_world.launch \\
-        world_name:=$(rospack find rl_environments)/worlds/ned2_workspace_only.world
+    roscore
+    roslaunch niryo_ned2_description_extras ned2_gazebo.launch gripper:=true
 
-The env spawns the ``cube_red`` SDF onto workspace_1 each reset.
+That launch (from the niryo_ned2_description_extras sibling package)
+mounts the Ned2 on the RX200 desk + adds the adaptive gripper +
+brings up the gazebo_tool_commander controller for mors joints. The
+env spawns ``red_cube`` onto the desk on reset.
 
 GRASP STABILITY CAVEAT: pure Gazebo grasping a 0.02 m cube with the
 Niryo's ~0.02 m gripper opening is marginal — friction alone usually

@@ -5,7 +5,7 @@
   training_steps: 90000      # The number of training steps to perform
 
   # Save params
-  save_freq: 500000
+  save_freq: 10000
   save_prefix: sac_goal_model_real_time_jul29_s10_el10_ac500ms
   trained_model_name: trained_goal_model_real_time_jul29_s10_el10_ac500ms
   save_replay_buffer: True

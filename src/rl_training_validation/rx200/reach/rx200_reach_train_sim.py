@@ -2,8 +2,8 @@
 """
 Train an SB3 policy on the RX200 sim Reach task.
 
-Standard env id:  ``UniROS-RX200ReachSim-v0``
-Goal env id:      ``UniROS-RX200ReachGoalSim-v0``
+Standard env id:  ``RX200ReacherSim-v0``
+Goal env id:      ``RX200ReacherGoalSim-v0``
 
 Requires Gazebo + roscore to already be running. The env class
 launches the appropriate MoveIt stack itself.

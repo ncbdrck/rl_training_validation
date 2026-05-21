@@ -5,7 +5,7 @@
   training_steps: 160000      # The number of training steps to perform
 
   # Save params
-  save_freq: 500000
+  save_freq: 10000
   save_prefix: td3_push_real_time_jul07_s10_el10_ac600ms
   trained_model_name: trained_model_push_real_time_jul07_s10_el10_ac600ms
   save_replay_buffer: True

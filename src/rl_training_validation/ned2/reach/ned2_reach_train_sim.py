@@ -2,8 +2,8 @@
 """
 Train an SB3 policy on the Ned2 sim Reach task.
 
-Standard env id:  ``UniROS-Ned2ReachSim-v0``
-Goal env id:      ``UniROS-Ned2ReachGoalSim-v0``
+Standard env id:  ``NED2ReacherSim-v0``
+Goal env id:      ``NED2ReacherGoalSim-v0``
 
 Requires Gazebo + roscore to already be running. The env class
 launches the appropriate MoveIt stack itself.

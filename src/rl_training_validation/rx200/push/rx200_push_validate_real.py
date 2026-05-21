@@ -11,8 +11,10 @@ prerequisites — both also apply here.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
+import rospkg
 import rospy
 # import gymnasium as gym  # uncomment + comment uniros below to test against vanilla Gymnasium
 import uniros as gym  # paper §6.1: subprocess-isolated env proxy; drop-in for gym.Env
@@ -42,6 +44,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--episodes", type=int, default=10)
     p.add_argument("--max-episode-steps", type=int, default=100)
     p.add_argument("--cube-pose-topic", default="/cube_pose")
+    p.add_argument("--model-tag", default="trained_model",
+                   help="Filename stem under the model directory (no .zip).")
     add_cube_tracker_cli(p)
     add_real_motion_cli(p)
     return p.parse_args()
@@ -51,6 +55,27 @@ def main() -> int:
     args = parse_args()
     env_id = ENV_GOAL if args.goal else ENV_STD
     check_env_constructable(env_id, allow_real_flag=args.allow_real_robot_motion)
+
+    # Resolve + verify the model file exists BEFORE bringing up the real
+    # robot. SB3 saves as <path>.zip; reach validate scripts use the same
+    # base + tag scheme.
+    pkg_path = "rl_training_validation"
+    if args.goal:
+        base = "/models/real/td3_goal/rx200/push/"
+        ModelCls = TD3_GOAL
+        cfg = "rx200_push_td3_goal.yaml"
+    else:
+        base = "/models/real/td3/rx200/push/"
+        ModelCls = TD3
+        cfg = "rx200_push_td3.yaml"
+    rel_model_path = base + args.model_tag
+    abs_model_path = rospkg.RosPack().get_path(pkg_path) + rel_model_path
+    if not os.path.exists(abs_model_path + ".zip"):
+        raise SystemExit(
+            f"[validate] trained model not found at {abs_model_path}.zip. "
+            "Either pass --model-tag <name> matching a file you trained, "
+            "or run rx200_push_train_real.py first."
+        )
 
     env_kwargs = dict(
         delta_action=True,
@@ -72,24 +97,16 @@ def main() -> int:
         env = NormalizeObservationWrapper(env)
     env = TimeLimitWrapper(env, max_episode_steps=args.max_episode_steps)
 
-    pkg_path = "rl_training_validation"
-    if args.goal:
-        save_path = "/models/real/td3_goal/rx200/push/"
-        log_path = "/logs/real/td3_goal/rx200/push/"
-        ModelCls = TD3_GOAL
-        cfg = "rx200_push_td3_goal.yaml"
-    else:
-        save_path = "/models/real/td3/rx200/push/"
-        log_path = "/logs/real/td3/rx200/push/"
-        ModelCls = TD3
-        cfg = "rx200_push_td3.yaml"
-
-    model = ModelCls(env, save_path, log_path, model_pkg_path=pkg_path,
-                     config_file_pkg=pkg_path, config_filename=cfg)
-    # NOTE: the SB3-ROS-support algos load the latest checkpoint via the
-    # save_path on construction; validation just calls predict() in a
-    # rollout loop. Check sb3_ros_support docs for the canonical
-    # validate-only entrypoint if your algo class exposes one.
+    # load_trained_model() routes through TD3(load_trained=True), which
+    # calls stable_baselines3.TD3.load(...) instead of constructing a
+    # fresh untrained policy. Required: a plain ModelCls(env, ...) call
+    # would create a new model and predict() would run a random policy.
+    model = ModelCls.load_trained_model(
+        model_path=rel_model_path,
+        model_pkg=pkg_path,
+        config_filename=cfg,
+        env=env,
+    )
 
     successes = 0
     for ep in range(args.episodes):
@@ -97,7 +114,7 @@ def main() -> int:
         terminated = truncated = False
         ep_reward = 0.0
         while not (terminated or truncated):
-            action, _ = model.model.predict(obs, deterministic=True)
+            action, _ = model.predict(obs, deterministic=True)
             obs, reward, terminated, truncated, info = env.step(action)
             ep_reward += float(reward)
         ok = bool(info.get("is_success", False))

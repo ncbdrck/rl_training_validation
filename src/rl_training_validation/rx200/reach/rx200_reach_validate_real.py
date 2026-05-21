@@ -2,13 +2,15 @@
 """
 Validate a trained policy against the RX200 *real* Reach task.
 
-Same real-robot double-gating as ``rx200_reach_train_real``.
+Same single-channel CLI gate as ``rx200_reach_train_real``.
 """
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
+import rospkg
 import rospy
 # import gymnasium as gym  # uncomment + comment uniros below to test against vanilla Gymnasium
 import uniros as gym  # paper §6.1: subprocess-isolated env proxy; drop-in for gym.Env
@@ -46,6 +48,38 @@ def main() -> int:
     env_id = "RX200ReacherGoalReal-v0" if args.goal else "RX200ReacherReal-v0"
     check_env_constructable(env_id, allow_real_flag=args.allow_real_robot_motion)
 
+    # Resolve the trained-model path BEFORE bringing up the real robot —
+    # mirrors the push/pnp validate_real pattern. Failing fast on a
+    # missing file saves a 20+ second driver bring-up just to hit
+    # FileNotFoundError mid-run.
+    pkg_path = "rl_training_validation"
+    if args.goal:
+        if args.algo == "td3":
+            cfg = "rx200_reacher_td3_goal.yaml"
+            base = "/models/real/td3_goal/rx200/reach/"
+            ModelCls = TD3_GOAL
+        else:
+            cfg = "rx200_reacher_sac_goal.yaml"
+            base = "/models/real/sac_goal/rx200/reach/"
+            ModelCls = SAC_GOAL
+    else:
+        if args.algo == "td3":
+            cfg = "rx200_reacher_td3.yaml"
+            base = "/models/real/td3/rx200/reach/"
+            ModelCls = TD3
+        else:
+            cfg = "rx200_reacher_sac.yaml"
+            base = "/models/real/sac/rx200/reach/"
+            ModelCls = SAC
+    rel_model_path = base + args.model_tag
+    abs_model_path = rospkg.RosPack().get_path(pkg_path) + rel_model_path
+    if not os.path.exists(abs_model_path + ".zip"):
+        raise SystemExit(
+            f"[validate] trained model not found at {abs_model_path}.zip. "
+            "Either pass --model-tag <name> matching a file you trained, "
+            "or run rx200_reach_train_real.py first."
+        )
+
     env_kwargs = dict(
         seed=args.seed,
         delta_action=True,
@@ -65,29 +99,12 @@ def main() -> int:
         env = NormalizeObservationWrapper(env)
     env = TimeLimitWrapper(env, max_episode_steps=args.max_episode_steps)
 
-    pkg_path = "rl_training_validation"
-    if args.goal:
-        if args.algo == "td3":
-            cfg = "rx200_reacher_td3_goal.yaml"
-            model_path = "/models/real/td3_goal/rx200/reach/" + args.model_tag
-            model = TD3_GOAL.load_trained_model(model_path=model_path, model_pkg=pkg_path,
-                                                config_filename=cfg, env=env)
-        else:
-            cfg = "rx200_reacher_sac_goal.yaml"
-            model_path = "/models/real/sac_goal/rx200/reach/" + args.model_tag
-            model = SAC_GOAL.load_trained_model(model_path=model_path, model_pkg=pkg_path,
-                                                config_filename=cfg, env=env)
-    else:
-        if args.algo == "td3":
-            cfg = "rx200_reacher_td3.yaml"
-            model_path = "/models/real/td3/rx200/reach/" + args.model_tag
-            model = TD3.load_trained_model(model_path=model_path, model_pkg=pkg_path,
-                                           config_filename=cfg, env=env)
-        else:
-            cfg = "rx200_reacher_sac.yaml"
-            model_path = "/models/real/sac/rx200/reach/" + args.model_tag
-            model = SAC.load_trained_model(model_path=model_path, model_pkg=pkg_path,
-                                           config_filename=cfg, env=env)
+    model = ModelCls.load_trained_model(
+        model_path=rel_model_path,
+        model_pkg=pkg_path,
+        config_filename=cfg,
+        env=env,
+    )
 
     obs, _ = env.reset()
     successes = 0

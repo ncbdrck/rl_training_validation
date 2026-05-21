@@ -2,13 +2,15 @@
 """
 Validate a trained policy against the Ned2 *real* Reach task.
 
-Same double-gating as ``ned2_reach_train_real``.
+Same single-channel CLI gate as ``ned2_reach_train_real``.
 """
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
+import rospkg
 import rospy
 # import gymnasium as gym  # uncomment + comment uniros below to test against vanilla Gymnasium
 import uniros as gym  # paper §6.1: subprocess-isolated env proxy; drop-in for gym.Env
@@ -56,6 +58,26 @@ def main() -> int:
     env_id = ENV_GOAL if args.goal else ENV_STD
     check_env_constructable(env_id, allow_real_flag=args.allow_real_robot_motion)
 
+    # Resolve the trained-model path BEFORE bringing up the real robot —
+    # mirrors the push/pnp validate_real pattern.
+    pkg_path = "rl_training_validation"
+    if args.goal:
+        cfg = CFG_GOAL_TD3 if args.algo == "td3" else CFG_GOAL_SAC
+        base = "/models/real/td3_goal/ned2/reach/" if args.algo == "td3" else "/models/real/sac_goal/ned2/reach/"
+        ModelCls = TD3_GOAL if args.algo == "td3" else SAC_GOAL
+    else:
+        cfg = CFG_STD_TD3 if args.algo == "td3" else CFG_STD_SAC
+        base = "/models/real/td3/ned2/reach/" if args.algo == "td3" else "/models/real/sac/ned2/reach/"
+        ModelCls = TD3 if args.algo == "td3" else SAC
+    rel_model_path = base + args.model_tag
+    abs_model_path = rospkg.RosPack().get_path(pkg_path) + rel_model_path
+    if not os.path.exists(abs_model_path + ".zip"):
+        raise SystemExit(
+            f"[validate] trained model not found at {abs_model_path}.zip. "
+            "Either pass --model-tag <name> matching a file you trained, "
+            "or run ned2_reach_train_real.py first."
+        )
+
     env_kwargs = dict(
         seed=args.seed,
         delta_action=True,
@@ -75,18 +97,12 @@ def main() -> int:
         env = NormalizeObservationWrapper(env)
     env = TimeLimitWrapper(env, max_episode_steps=args.max_episode_steps)
 
-    pkg_path = "rl_training_validation"
-    if args.goal:
-        cfg = CFG_GOAL_TD3 if args.algo == "td3" else CFG_GOAL_SAC
-        base = "/models/real/td3_goal/ned2/reach/" if args.algo == "td3" else "/models/real/sac_goal/ned2/reach/"
-        ModelCls = TD3_GOAL if args.algo == "td3" else SAC_GOAL
-    else:
-        cfg = CFG_STD_TD3 if args.algo == "td3" else CFG_STD_SAC
-        base = "/models/real/td3/ned2/reach/" if args.algo == "td3" else "/models/real/sac/ned2/reach/"
-        ModelCls = TD3 if args.algo == "td3" else SAC
-    model_path = base + args.model_tag
-    model = ModelCls.load_trained_model(model_path=model_path, model_pkg=pkg_path,
-                                        config_filename=cfg, env=env)
+    model = ModelCls.load_trained_model(
+        model_path=rel_model_path,
+        model_pkg=pkg_path,
+        config_filename=cfg,
+        env=env,
+    )
 
     obs, _ = env.reset()
     successes, truncs, timeouts = 0, 0, 0

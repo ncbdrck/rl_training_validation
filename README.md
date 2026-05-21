@@ -87,7 +87,7 @@ python3 scripts/live_smoke_envs.py --filter PnP
 python3 scripts/live_smoke_envs.py --filter Goal
 python3 scripts/live_smoke_envs.py --filter Zed2
 
-# Include real envs (requires hardware + double-gating):
+# Include real envs (requires hardware + --allow-real-robot-motion):
 ALLOW_REAL_ROBOT_MOTION=1 rosparam set /allow_real_robot_motion true
 python3 scripts/live_smoke_envs.py --include-real --allow-real-robot-motion --filter Real
 ```
@@ -150,7 +150,7 @@ built-in wrist camera subscriber (off by default).
 
 ### NED2 real tasks
 
-Same double-gating as RX200 real (`--allow-real-robot-motion` + rosparam
+Same single-channel CLI gate as RX200 real (`--allow-real-robot-motion`;
 or env-var consent). Real bring-up needs `niryo_robot_bringup` running.
 
 ```bash

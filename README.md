@@ -33,9 +33,8 @@ and emits a throttled warning — runnable for dry-run / code-review
 even when no vision pipeline is wired up. Wire up aruco_ros,
 AprilTag, mocap, or your detector of choice for actual cube tracking.
 
-NED2 push / pnp and UR5e (all tasks) are referenced in stub train/validate
-scripts but not yet registered in `rl_environments`. `check_env_constructable`
-will surface a clear error if you try to run them.
+If you reference an env id that isn't registered, `check_env_constructable`
+prints the available ids and exits cleanly without launching Gazebo / driver.
 
 ## Prerequisites
 
@@ -125,12 +124,48 @@ rosrun rl_training_validation rx200_pnp_train_sim.py
 rosrun rl_training_validation rx200_pnp_train_sim.py --goal         # TD3+HER
 ```
 
-### NED2 sim Reach
+### NED2 sim tasks
+
+Recommended sim bring-up (separate terminal):
+
+```bash
+roscore
+roslaunch niryo_ned2_description_extras ned2_gazebo.launch                 # reach / push
+roslaunch niryo_ned2_description_extras ned2_gazebo.launch gripper:=true   # pnp
+```
+
+Then:
 
 ```bash
 rosrun rl_training_validation ned2_reach_train_sim.py
 rosrun rl_training_validation ned2_reach_train_sim.py --goal
+rosrun rl_training_validation ned2_push_train_sim.py
+rosrun rl_training_validation ned2_push_train_sim.py --goal
+rosrun rl_training_validation ned2_pnp_train_sim.py
+rosrun rl_training_validation ned2_pnp_train_sim.py --goal
 ```
+
+Pass `--wrist-camera` on any NED2 train/validate script to enable the
+built-in wrist camera subscriber (off by default).
+
+### NED2 real tasks
+
+Same double-gating as RX200 real (`--allow-real-robot-motion` + rosparam
+or env-var consent). Real bring-up needs `niryo_robot_bringup` running.
+
+```bash
+rosrun rl_training_validation ned2_reach_train_real.py --allow-real-robot-motion
+rosrun rl_training_validation ned2_push_train_real.py --allow-real-robot-motion \
+    --cube-tracker auto --cube-tracker-camera kinect2 \
+    --cube-tracker-target-frame base_link
+rosrun rl_training_validation ned2_pnp_train_real.py  --allow-real-robot-motion \
+    --cube-tracker auto --cube-tracker-camera kinect2 \
+    --cube-tracker-target-frame base_link --multi-goal
+```
+
+NED2 real envs use the bare `base_link` URDF name (no `ned2/` prefix —
+that's a sim-only namespace). Validate scripts mirror train scripts;
+swap `train_real` for `validate_real`.
 
 ### Validate a trained policy
 
@@ -261,20 +296,6 @@ scripts/
   before publishing (`_check_action_links_safe` in the RX200/NED2 robot
   envs). See `rl_environments/config/rx200_reach_task_config.yaml` for
   the safety params.
-
-## What's new (May 2026)
-
-* Reach / push / PnP now have **kinect AND zed2 sim variants**, each in
-  std + goal flavour.
-* Push obs extended with **cube linear / angular velocity** (finite-diff)
-  and **cube position relative to EE**.
-* PnP adds **6-DOF action** (5 arm joints + 1 gripper scalar), `is_grasped`
-  **derived obs**, **grasp-aware layered dense reward**, and the **`multi_goal`**
-  flag for intermediate-lift curriculum.
-* `realtime_mode: bool = True` kwarg on every task env — `True` runs the
-  UniROS paper §7 real-time loop (rospy.Timer-driven, matches the real
-  env), `False` runs a standard MDP pause-step-resume loop for clean
-  RL-algorithm benchmarking.
 
 ## Contact
 

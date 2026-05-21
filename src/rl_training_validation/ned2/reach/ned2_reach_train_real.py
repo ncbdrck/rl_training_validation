@@ -1,23 +1,114 @@
 #!/usr/bin/env python3
 """
-Stub: Ned2 Reach (real) — train.
+Train an SB3 policy on the Ned2 *real* Reach task.
 
-This task is registered as ``UniROS-Ned2ReachReal-v0`` but routes to
-:class:`UnimplementedRLEnv`. Running this script prints a clear
-message and exits without constructing any env. To unblock:
-update ``rl_environments/common/env_status.py`` AFTER you have
-actually implemented and tested the env class.
+Real motion is double-gated (same contract as the RX200 real envs):
+
+  1. ``check_env_constructable`` refuses to construct any ``...Real`` env
+     unless ``--allow-real-robot-motion`` is passed on the command line.
+  2. The env-side safety gate refuses to publish to the niryo driver
+     unless the corresponding rosparam / env var is also set.
+
+Reach does not need a cube tracker. ``--wrist-camera`` is optional
+(off by default); when set, the env subscribes to the niryo wrist
+camera and exposes the decoded frame as ``self.cv_image_wrist``.
 """
 from __future__ import annotations
 
+import argparse
 import sys
 
-from rl_training_validation._blocked_stub import run_blocked_stub
+import rospy
+# import gymnasium as gym  # uncomment + comment uniros below to test against vanilla Gymnasium
+import uniros as gym  # paper §6.1: subprocess-isolated env proxy; drop-in for gym.Env
+
+import rl_environments  # noqa: F401  trigger registration
+
+from rl_training_validation.utils.env_safety import (
+    add_real_motion_cli, add_wrist_camera_cli, apply_wrist_camera_kwargs,
+    check_env_constructable, is_goal_env,
+)
+
+from sb3_ros_support.sac import SAC
+from sb3_ros_support.td3 import TD3
+from sb3_ros_support.td3_goal import TD3_GOAL
+from sb3_ros_support.sac_goal import SAC_GOAL
+
+from realros.wrappers.normalize_action_wrapper import NormalizeActionWrapper
+from realros.wrappers.normalize_obs_wrapper import NormalizeObservationWrapper
+from realros.wrappers.time_limit_wrapper import TimeLimitWrapper
+
+
+ENV_STD = "NED2ReacherReal-v0"
+ENV_GOAL = "NED2ReacherGoalReal-v0"
+CFG_STD_TD3 = "rx200_reacher_td3.yaml"
+CFG_STD_SAC = "rx200_reacher_sac.yaml"
+CFG_GOAL_TD3 = "rx200_reacher_td3_goal.yaml"
+CFG_GOAL_SAC = "rx200_reacher_sac_goal.yaml"
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--goal", action="store_true",
+                   help="Use the goal-conditioned env + HER.")
+    p.add_argument("--algo", default="td3", choices=("td3", "sac"))
+    p.add_argument("--seed", type=int, default=10)
+    p.add_argument("--max-episode-steps", type=int, default=100)
+    p.add_argument("--reward-type", default=None)
+    add_wrist_camera_cli(p)
+    add_real_motion_cli(p)
+    return p.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    env_id = ENV_GOAL if args.goal else ENV_STD
+    check_env_constructable(env_id, allow_real_flag=args.allow_real_robot_motion)
+
+    env_kwargs = dict(
+        seed=args.seed,
+        delta_action=True,
+        ee_action_type=False,
+        use_smoothing=False,
+        action_speed=0.100,
+        log_internal_state=False,
+    )
+    apply_wrist_camera_kwargs(env_kwargs, args)
+    if args.reward_type:
+        env_kwargs["reward_type"] = args.reward_type
+    elif is_goal_env(env_id):
+        env_kwargs["reward_type"] = "Sparse"
+    else:
+        env_kwargs["reward_type"] = "Dense"
+
+    env = gym.make(env_id, **env_kwargs)
+    env = NormalizeActionWrapper(env)
+    if is_goal_env(env_id):
+        env = NormalizeObservationWrapper(env, normalize_goal_spaces=True)
+    else:
+        env = NormalizeObservationWrapper(env)
+    env = TimeLimitWrapper(env, max_episode_steps=args.max_episode_steps)
+    env.reset()
+
+    pkg_path = "rl_training_validation"
+    if args.goal:
+        cfg = CFG_GOAL_TD3 if args.algo == "td3" else CFG_GOAL_SAC
+        save_path = "/models/real/td3_goal/ned2/reach/" if args.algo == "td3" else "/models/real/sac_goal/ned2/reach/"
+        log_path = "/logs/real/td3_goal/ned2/reach/" if args.algo == "td3" else "/logs/real/sac_goal/ned2/reach/"
+        ModelCls = TD3_GOAL if args.algo == "td3" else SAC_GOAL
+    else:
+        cfg = CFG_STD_TD3 if args.algo == "td3" else CFG_STD_SAC
+        save_path = "/models/real/td3/ned2/reach/" if args.algo == "td3" else "/models/real/sac/ned2/reach/"
+        log_path = "/logs/real/td3/ned2/reach/" if args.algo == "td3" else "/logs/real/sac/ned2/reach/"
+        ModelCls = TD3 if args.algo == "td3" else SAC
+
+    model = ModelCls(env, save_path, log_path, model_pkg_path=pkg_path,
+                     config_file_pkg=pkg_path, config_filename=cfg)
+    model.train()
+    model.save_model()
+    model.close_env()
+    return 0
 
 
 if __name__ == "__main__":
-    sys.exit(run_blocked_stub(
-        "NED2ReacherReal-v0",
-        real=True,
-        reason="Ned2 real env class not yet implemented.",
-    ))
+    sys.exit(main())

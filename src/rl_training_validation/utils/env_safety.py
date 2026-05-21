@@ -183,6 +183,36 @@ def apply_cube_tracker_kwargs(env_kwargs: dict, args: argparse.Namespace) -> dic
 
 
 # ---------------------------------------------------------------------------
+# Wrist-camera CLI plumbing (NED2 sim + real)
+# ---------------------------------------------------------------------------
+
+def add_wrist_camera_cli(parser: argparse.ArgumentParser) -> None:
+    """Add ``--wrist-camera`` flag (default off).
+
+    NED2 envs accept ``use_wrist_camera: bool`` as a kwarg. Default off
+    so there's no extra Gazebo / vision-node load when the user doesn't
+    need it.
+    """
+    parser.add_argument(
+        "--wrist-camera",
+        action="store_true",
+        default=False,
+        help=(
+            "Enable the Niryo Ned2 wrist camera subscriber. Sim subscribes "
+            "to /gazebo_camera/image_raw (raw); real subscribes to "
+            "/niryo_robot_vision/compressed_video_stream (compressed). "
+            "Decoded frame is exposed as self.cv_image_wrist on the env."
+        ),
+    )
+
+
+def apply_wrist_camera_kwargs(env_kwargs: dict, args: argparse.Namespace) -> dict:
+    """Merge ``--wrist-camera`` into ``env_kwargs``. Returns it for chaining."""
+    env_kwargs["use_wrist_camera"] = bool(args.wrist_camera)
+    return env_kwargs
+
+
+# ---------------------------------------------------------------------------
 # Combined "is this env safe to construct now?" check
 # ---------------------------------------------------------------------------
 

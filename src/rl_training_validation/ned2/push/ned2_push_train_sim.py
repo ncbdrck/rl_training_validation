@@ -35,7 +35,8 @@ import uniros as gym  # paper §6.1: subprocess-isolated env proxy; drop-in for 
 import rl_environments  # noqa: F401  trigger registration
 
 from rl_training_validation.utils.env_safety import (
-    add_real_motion_cli, check_env_constructable, is_goal_env,
+    add_real_motion_cli, add_wrist_camera_cli, apply_wrist_camera_kwargs,
+    check_env_constructable, is_goal_env,
 )
 
 from sb3_ros_support.td3 import TD3
@@ -60,6 +61,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--max-episode-steps", type=int, default=100)
     p.add_argument("--gazebo-gui", action="store_true")
     p.add_argument("--reward-type", default=None)
+    add_wrist_camera_cli(p)
     add_real_motion_cli(p)
     return p.parse_args()
 
@@ -80,6 +82,7 @@ def main() -> int:
         action_speed=0.100,
         log_internal_state=False,
     )
+    apply_wrist_camera_kwargs(env_kwargs, args)
     if args.reward_type:
         env_kwargs["reward_type"] = args.reward_type
     elif is_goal_env(env_id):

@@ -159,7 +159,7 @@ def add_cube_tracker_cli(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--cube-tracker-camera",
-        choices=("kinect2", "zed2"),
+        choices=("kinect2", "zed2", "d405"),
         default="kinect2",
         help="Which camera launch file rl_envs_cube_tracker uses (only with --cube-tracker auto).",
     )

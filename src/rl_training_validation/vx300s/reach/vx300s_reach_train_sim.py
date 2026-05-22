@@ -5,8 +5,8 @@ Train an SB3 policy on the VX300S sim Reach task.
 Standard env id:  ``VX300SReacherSim-v0``
 Goal env id:      ``VX300SReacherGoalSim-v0``
 
-Requires Gazebo + roscore to already be running. The env class
-launches the appropriate MoveIt stack itself.
+The env launches its own Gazebo/roscore by default and starts the
+appropriate MoveIt stack itself.
 """
 from __future__ import annotations
 

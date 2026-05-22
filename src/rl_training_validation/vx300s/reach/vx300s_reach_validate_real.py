@@ -2,7 +2,7 @@
 """
 Validate a trained policy against the VX300S *real* Reach task.
 
-Same single-channel CLI gate as ``rx200_reach_train_real``.
+Same single-channel CLI gate as ``vx300s_reach_train_real``.
 """
 from __future__ import annotations
 
@@ -77,7 +77,7 @@ def main() -> int:
         raise SystemExit(
             f"[validate] trained model not found at {abs_model_path}.zip. "
             "Either pass --model-tag <name> matching a file you trained, "
-            "or run rx200_reach_train_real.py first."
+            "or run vx300s_reach_train_real.py first."
         )
 
     env_kwargs = dict(

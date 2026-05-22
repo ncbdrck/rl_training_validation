@@ -5,7 +5,7 @@ Smoke-test the training/validation repo's relationship with the
 Gazebo, ROS, or hardware.
 
 Verifies:
-  1. ``rl_environments`` imports and at least the expected RX200 + NED2
+  1. ``rl_environments`` imports and at least the expected RX200 + NED2 + VX300S
      ids land in the registry.
   2. The env_safety classifiers (is_real / is_goal_env) behave as
      documented.
@@ -62,6 +62,9 @@ EXPECTED_IDS = {
     # RX200 real push + pnp (cube tracking via /cube_pose topic)
     "RX200PushReal-v0", "RX200PushGoalReal-v0",
     "RX200PnPReal-v0", "RX200PnPGoalReal-v0",
+    # VX300S reach (kinect)
+    "VX300SReacherSim-v0", "VX300SReacherGoalSim-v0",
+    "VX300SReacherReal-v0", "VX300SReacherGoalReal-v0",
 }
 
 
@@ -96,6 +99,8 @@ def test_env_safety_helpers() -> int:
         ("RX200PnPGoalSim-v0",   ("rx200", "sim",  "pnp",   True)),
         ("RX200Zed2PushSim-v0",  ("rx200", "sim",  "push",  False)),
         ("RX200ReacherReal-v0",  ("rx200", "real", "reach", False)),
+        ("VX300SReacherGoalSim-v0", ("vx300s", "sim", "reach", True)),
+        ("VX300SReacherReal-v0", ("vx300s", "real", "reach", False)),
     ]:
         got = parse_env_id(eid)
         if got != want:
@@ -106,8 +111,10 @@ def test_env_safety_helpers() -> int:
         (not is_real("RX200ReacherSim-v0"),  "is_real Sim==False"),
         (is_real("RX200ReacherReal-v0"),     "is_real Real==True"),
         (is_goal_env("RX200ReacherGoalSim-v0"), "is_goal_env Goal==True"),
+        (is_goal_env("VX300SReacherGoalReal-v0"), "is_goal_env VX300S Real Goal==True"),
         (not is_goal_env("RX200ReacherSim-v0"), "is_goal_env non-Goal==False"),
         (is_registered("RX200PnPSim-v0"),    "is_registered PnP==True"),
+        (is_registered("VX300SReacherSim-v0"), "is_registered VX300S reach==True"),
         (not is_registered("NotARealId-v0"), "is_registered fake==False"),
     ]
     for ok, label in checks:

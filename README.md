@@ -8,7 +8,7 @@ Pure registry-based: every env that `rl_environments` registers is
 runnable here. There is no separate "implementation-status table" —
 if `gym.envs.registry` contains it, the scripts can drive it.
 
-## Currently registered envs (30)
+## Currently registered envs (34)
 
 | Robot | Task | Std (sim) | Goal (sim) | Std (real) | Goal (real) |
 |---|---|---|---|---|---|
@@ -21,6 +21,10 @@ if `gym.envs.registry` contains it, the scripts can drive it.
 | Ned2 (kinect)  | Reach | `NED2ReacherSim-v0` | `NED2ReacherGoalSim-v0` | `NED2ReacherReal-v0` | `NED2ReacherGoalReal-v0` |
 | Ned2 (kinect)  | Push  | `NED2PushSim-v0` | `NED2PushGoalSim-v0` | `NED2PushReal-v0` | `NED2PushGoalReal-v0` |
 | Ned2 (kinect)  | PnP   | `NED2PnPSim-v0` | `NED2PnPGoalSim-v0` | `NED2PnPReal-v0` | `NED2PnPGoalReal-v0` |
+| VX300S (kinect) | Reach | `VX300SReacherSim-v0` | `VX300SReacherGoalSim-v0` | `VX300SReacherReal-v0` | `VX300SReacherGoalReal-v0` |
+
+VX300S currently has reach envs only. Push and PnP parity with RX200/NED2
+still needs VX300S task envs, YAML configs, and train/validate scripts.
 
 PnP envs include `is_grasped` derived obs, grasp-aware layered dense
 reward, and a `multi_goal` flag for intermediate-lift curriculum.
@@ -45,6 +49,8 @@ prints the available ids and exits cleanly without launching Gazebo / driver.
 3. **`UniROS`** (`multiros` + `realros`) — Gazebo / real-robot base envs.
 4. **Robot description-extras packages** (for sim only):
    - **RX200 sim** → `reactorx200_description` (RX200 + table + kinect2).
+   - **VX300S sim** → `viperx300s_description`
+     (ViperX-300S + table + optional red cube + kinect2 + ros_control).
    - **Ned2 sim** → `niryo_ned2_description_extras`
      (Ned2 + same table + head-mount kinect2 + Niryo PID gains).
      See `rl_environments/README.md` §3a for install.
@@ -73,16 +79,17 @@ python3 scripts/check_goal_training_setup.py
 
 `scripts/live_smoke_envs.py` actually does `gym.make`, `reset`, one
 `step`, and `close` for each env id. Each Gazebo bring-up takes
-~30–60 s, so a full sweep is 5–10 minutes for the 14 sim envs.
+~30–60 s, so a full sweep is 10–20 minutes for the 20 sim envs.
 
 ```bash
 # Source the workspace first.
 source devel/setup.bash
 
-# Smoke every RX200 / NED2 sim env (skips real envs by default):
+# Smoke every RX200 / NED2 / VX300S sim env (skips real envs by default):
 python3 scripts/live_smoke_envs.py
 
 # Subset by substring match:
+python3 scripts/live_smoke_envs.py --filter VX300S
 python3 scripts/live_smoke_envs.py --filter PnP
 python3 scripts/live_smoke_envs.py --filter Goal
 python3 scripts/live_smoke_envs.py --filter Zed2
@@ -148,6 +155,24 @@ rosrun rl_training_validation ned2_pnp_train_sim.py --goal
 Pass `--wrist-camera` on any NED2 train/validate script to enable the
 built-in wrist camera subscriber (off by default).
 
+### VX300S sim reach
+
+The VX300S env launches through `viperx300s_description`. Reach has no
+cube semantics so the task env doesn't spawn one — if you want a
+visual cube for sanity-checking the table scene, launch the
+description-extras directly instead:
+
+```bash
+roslaunch viperx300s_description vx300s_gazebo.launch load_cube:=true
+```
+
+Training:
+
+```bash
+rosrun rl_training_validation vx300s_reach_train_sim.py
+rosrun rl_training_validation vx300s_reach_train_sim.py --goal
+```
+
 ### NED2 real tasks
 
 Same single-channel CLI gate as RX200 real (`--allow-real-robot-motion`;
@@ -167,14 +192,27 @@ NED2 real envs use the bare `base_link` URDF name (no `ned2/` prefix —
 that's a sim-only namespace). Validate scripts mirror train scripts;
 swap `train_real` for `validate_real`.
 
+### VX300S real reach
+
+Same real-motion gate as RX200/NED2 real. Bring up the Interbotix
+hardware driver first, then opt in explicitly:
+
+```bash
+rosrun rl_training_validation vx300s_reach_train_real.py --allow-real-robot-motion
+rosrun rl_training_validation vx300s_reach_train_real.py --allow-real-robot-motion --goal
+```
+
 ### Validate a trained policy
 
 ```bash
 # Sim
 rosrun rl_training_validation rx200_reach_validate_sim.py --episodes 20
+rosrun rl_training_validation vx300s_reach_validate_sim.py --episodes 20
 
 # Real (requires --allow-real-robot-motion; see safety section)
 rosrun rl_training_validation rx200_reach_validate_real.py --episodes 10 \
+    --allow-real-robot-motion
+rosrun rl_training_validation vx300s_reach_validate_real.py --episodes 10 \
     --allow-real-robot-motion
 ```
 
@@ -269,13 +307,14 @@ src/rl_training_validation/
     multi_task_env.py        # multi-task wrapper used by multi_train_sim
     multi_task_goal_env.py
   _blocked_stub.py           # shared 'blocked env id' bail-out (legacy; rarely used now)
-  rx200/  ned2/  ur5e/
+  rx200/  ned2/  vx300s/  ur5e/
     reach/  push/  pnp/      # per-task train + validate scripts
   multi_task_learning/
     multi_train_sim.py
 config/
   rx200_*.yaml               # SB3 hyperparams per algo / env
   ned2_*.yaml
+  vx300s_*.yaml
   ur5e_*.yaml
 
 scripts/
@@ -302,9 +341,10 @@ scripts/
   for every registered goal env.
 * Sim envs run with per-link FK safety in `execute_action` — every joint
   trajectory target is checked link-by-link against the table floor
-  before publishing (`_check_action_links_safe` in the RX200/NED2 robot
-  envs). See `rl_environments/config/rx200_reach_task_config.yaml` for
-  the safety params.
+  before publishing (`_check_action_links_safe` in the RX200/NED2/VX300S
+  robot envs). See `rl_environments/config/rx200_reach_task_config.yaml`
+  and `rl_environments/config/vx300s_reach_task_config.yaml` for the
+  safety params.
 
 ## Contact
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Live smoke test for every registered RX200 / NED2 sim env.
+Live smoke test for every registered RX200 / NED2 / VX300S sim env.
 
 For each env id this DOES start Gazebo (each env launches its own
 roscore + gazebo subprocess). For each id we:
@@ -15,7 +15,7 @@ the run; failures are reported and we move to the next id.
 
 Usage::
 
-    # Default: smoke every RX200/NED2 sim env in the registry.
+    # Default: smoke every RX200/NED2/VX300S sim env in the registry.
     python3 scripts/live_smoke_envs.py
 
     # Subset by substring (matches any id containing the pattern):

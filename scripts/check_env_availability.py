@@ -24,7 +24,7 @@ from rl_training_validation.utils.env_safety import (  # noqa: E402
 # Match string literals that look like our env ids (any of the known
 # robot prefixes, possibly with a Zed2 sensor flavour, ending in -vN).
 _ENV_ID_RE = re.compile(
-    r"['\"]((?:RX200|NED2|UR5e|UR5)[A-Za-z0-9]+-v\d+)['\"]"
+    r"['\"]((?:RX200|NED2|VX300S|UR5e|UR5)[A-Za-z0-9]+-v\d+)['\"]"
 )
 
 

@@ -43,7 +43,7 @@ def _import_gym():
 
 # Our registry uses bare ids (no UniROS- prefix). Anything with one of these
 # robot prefixes is considered "ours" for listing / cross-check purposes.
-_ROBOT_PREFIXES = ("RX200", "NED2", "VX300S", "UR5e", "UR5")
+_ROBOT_PREFIXES = ("RX200", "NED2", "VX300S")
 
 
 def is_registered(env_id: str) -> bool:
@@ -316,8 +316,7 @@ def parse_env_id(env_id: str):
     body = env_id[: -len("-v0")]
     for prefix in sorted(_ROBOT_PREFIXES, key=len, reverse=True):
         if body.startswith(prefix):
-            robot_lc = {"RX200": "rx200", "NED2": "ned2", "VX300S": "vx300s",
-                        "UR5e": "ur5e", "UR5": "ur5"}[prefix]
+            robot_lc = {"RX200": "rx200", "NED2": "ned2", "VX300S": "vx300s"}[prefix]
             rest = body[len(prefix):]
             break
     else:

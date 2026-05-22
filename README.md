@@ -238,13 +238,13 @@ src/rl_training_validation/
     env_safety.py            # registry-based env classification + real-motion gate
     multi_task_env.py        # multi-task wrapper used by multi_train_sim
     multi_task_goal_env.py
-  rx200/  ned2/  vx300s/  ur5e/
+  rx200/  ned2/  vx300s/
     reach/  push/  pnp/      # per-task train + validate scripts
   multi_task_learning/
     multi_train_sim.py
 
 config/
-  rx200_*.yaml  ned2_*.yaml  vx300s_*.yaml  ur5e_*.yaml    # SB3 hyperparams
+  rx200_*.yaml  ned2_*.yaml  vx300s_*.yaml      # SB3 hyperparams
 
 scripts/
   list_available_envs.py

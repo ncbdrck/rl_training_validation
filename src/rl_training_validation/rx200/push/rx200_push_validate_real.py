@@ -22,7 +22,8 @@ import uniros as gym  # paper §6.1: subprocess-isolated env proxy; drop-in for 
 import rl_environments  # noqa: F401  trigger registration
 
 from rl_training_validation.utils.env_safety import (
-    add_cube_tracker_cli, add_real_motion_cli, apply_cube_tracker_kwargs,
+    add_cube_tracker_cli, add_goal_pose_cli, add_real_motion_cli,
+    apply_cube_tracker_kwargs, apply_goal_pose_kwargs,
     check_env_constructable, is_goal_env,
 )
 
@@ -47,6 +48,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--model-tag", default="trained_model",
                    help="Filename stem under the model directory (no .zip).")
     add_cube_tracker_cli(p)
+    add_goal_pose_cli(p)
     add_real_motion_cli(p)
     return p.parse_args()
 
@@ -88,6 +90,7 @@ def main() -> int:
         cube_pose_topic=args.cube_pose_topic,
     )
     apply_cube_tracker_kwargs(env_kwargs, args)
+    apply_goal_pose_kwargs(env_kwargs, args)
 
     env = gym.make(env_id, **env_kwargs)
     env = NormalizeActionWrapper(env)

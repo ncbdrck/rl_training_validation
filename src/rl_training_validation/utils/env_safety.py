@@ -218,6 +218,39 @@ def apply_wrist_camera_kwargs(env_kwargs: dict, args: argparse.Namespace) -> dic
 
 
 # ---------------------------------------------------------------------------
+# Goal-pose CLI plumbing for push real (optional physical AprilTag for the
+# push target — push only; jitter from hand-held tags would destabilise
+# reach / pnp policies, where the goal is in the air).
+# ---------------------------------------------------------------------------
+
+def add_goal_pose_cli(parser: argparse.ArgumentParser) -> None:
+    """Add ``--goal-pose-topic`` for push real validation.
+
+    Empty by default → the env keeps using random / hard-coded goals.
+    When set (e.g. ``/goal_pose``), the env subscribes; on each reset
+    the latest pose (if fresh) overrides the random / hard-coded goal.
+    Use with ``--cube-tracker auto`` to also auto-launch the second
+    AprilTag adapter for the goal tag (id 1 by default).
+    """
+    parser.add_argument(
+        "--goal-pose-topic",
+        default="",
+        help=(
+            "Topic publishing the physical-goal PoseStamped (e.g. /goal_pose). "
+            "Empty (default) leaves the env on its random / hard-coded goal. "
+            "Push real only — reach / pnp use sampled in-air goals where "
+            "hand-held tag jitter destabilises the policy."
+        ),
+    )
+
+
+def apply_goal_pose_kwargs(env_kwargs: dict, args: argparse.Namespace) -> dict:
+    """Merge ``--goal-pose-topic`` into ``env_kwargs``. Returns it for chaining."""
+    env_kwargs["goal_pose_topic"] = str(args.goal_pose_topic)
+    return env_kwargs
+
+
+# ---------------------------------------------------------------------------
 # Combined "is this env safe to construct now?" check
 # ---------------------------------------------------------------------------
 

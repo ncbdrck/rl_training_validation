@@ -1,89 +1,105 @@
-#!/bin/python3
+#!/usr/bin/env python3
+"""
+Train an SB3 policy on the RX200 sim Push task.
+
+Standard env id:  ``RX200PushSim-v0``
+Goal env id:      ``RX200PushGoalSim-v0``
+
+Requires Gazebo + roscore to already be running. The env class
+launches the appropriate MoveIt stack itself.
+"""
+from __future__ import annotations
+
+import argparse
 import sys
 
-# ROS packages required
 import rospy
+# import gymnasium as gym  # uncomment + comment uniros below to test against vanilla Gymnasium
+import uniros as gym  # paper §6.1: subprocess-isolated env proxy; drop-in for gym.Env
 
-# gym
-import gymnasium as gym
-import numpy as np
+import rl_environments  # noqa: F401  trigger registration
 
-# We can use the following import statement if we want to use the multiros package
-from multiros.utils import ros_common
+from rl_training_validation.utils.env_safety import (
+    add_real_motion_cli, check_env_constructable, is_goal_env,
+)
 
-# Models
 from sb3_ros_support.td3 import TD3
 from sb3_ros_support.td3_goal import TD3_GOAL
 
-# wrappers
 from multiros.wrappers.normalize_action_wrapper import NormalizeActionWrapper
 from multiros.wrappers.normalize_obs_wrapper import NormalizeObservationWrapper
 from multiros.wrappers.time_limit_wrapper import TimeLimitWrapper
 
-# import the environment
-import rl_environments
 
-"""
-Environments are registered inside the main __init__.py of the rl_environments package
-- RX200PushSim-v0  # RX200 Push Multiros Default Environment
-"""
+ENV_STD  = "RX200PushSim-v0"
+ENV_GOAL = "RX200PushGoalSim-v0"
+CFG_STD  = "rx200_push_td3.yaml"
+CFG_GOAL = "rx200_push_td3_goal.yaml"
 
-if __name__ == '__main__':
-    # Kill all processes related to previous runs
-    # ros_common.kill_all_ros_and_gazebo()
 
-    # Clear ROS logs
-    # ros_common.clean_ros_logs()
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--goal", action="store_true",
+                   help="Use the goal-conditioned env + HER.")
+    p.add_argument("--seed", type=int, default=10)
+    p.add_argument("--max-episode-steps", type=int, default=100)
+    p.add_argument("--gazebo-gui", action="store_true")
+    p.add_argument("--reward-type", default=None)
+    add_real_motion_cli(p)
+    return p.parse_args()
 
-    # # --- normal environments
-    env = gym.make('RX200PushSim-v0', gazebo_gui=False, ee_action_type=False, seed=10,
-                   delta_action=True, environment_loop_rate=10.0, action_cycle_time=0.600,
-                   use_smoothing=False, action_speed=0.100, load_table = True,
-                   random_goal=False, random_cube_spawn=True)
 
-    # # --- goal environments
-    # env = gym.make('RX200PushGoalSim-v0', gazebo_gui=False, ee_action_type=False, seed=10,
-    #                delta_action=True, environment_loop_rate=10.0, action_cycle_time=0.600,
-    #                use_smoothing=False, action_speed=0.100, load_table = True,
-    #                random_goal = False, random_cube_spawn = True)
+def main() -> int:
+    args = parse_args()
+    env_id = ENV_GOAL if args.goal else ENV_STD
+    check_env_constructable(env_id, allow_real_flag=args.allow_real_robot_motion)
 
-    # Normalize action space
+    env_kwargs = dict(
+        seed=args.seed,
+        gazebo_gui=args.gazebo_gui,
+        ee_action_type=False,
+        delta_action=True,
+        environment_loop_rate=10.0,
+        action_cycle_time=0.500,
+        use_smoothing=False,
+        action_speed=0.100,
+        log_internal_state=False,
+    )
+    if args.reward_type:
+        env_kwargs["reward_type"] = args.reward_type
+    elif is_goal_env(env_id):
+        env_kwargs["reward_type"] = "Sparse"
+    else:
+        env_kwargs["reward_type"] = "Dense"
+
+    env = gym.make(env_id, **env_kwargs)
     env = NormalizeActionWrapper(env)
-
-    # Normalize observation space
-    # env = NormalizeObservationWrapper(env)
-    env = NormalizeObservationWrapper(env, normalize_goal_spaces=True)  # goal-conditioned environments
-
-    # Set max steps
-    env = TimeLimitWrapper(env, max_episode_steps=100)
-
-    # reset the environment
+    if is_goal_env(env_id):
+        env = NormalizeObservationWrapper(env, normalize_goal_spaces=True)
+    else:
+        env = NormalizeObservationWrapper(env)
+    env = TimeLimitWrapper(env, max_episode_steps=args.max_episode_steps)
     env.reset()
 
-    # path to the package
     pkg_path = "rl_training_validation"
+    if args.goal:
+        cfg = CFG_GOAL
+        save_path = "/models/sim/td3_goal/rx200/push/"
+        log_path  = "/logs/sim/td3_goal/rx200/push/"
+        ModelCls = TD3_GOAL
+    else:
+        cfg = CFG_STD
+        save_path = "/models/sim/td3/rx200/push/"
+        log_path  = "/logs/sim/td3/rx200/push/"
+        ModelCls = TD3
 
-    # Default base environments - TD3
-    config_file_name = "rx200_push_td3.yaml"
-    save_path = "/models/sim/td3/rx200/push/"
-    log_path = "/logs/sim/td3/rx200/push/"
-
-    # create the model - TD3
-    model = TD3(env, save_path, log_path, model_pkg_path=pkg_path,
-                config_file_pkg=pkg_path, config_filename=config_file_name)
-
-    # # Goal-conditioned environments - TD3+HER
-    # config_file_name = "rx200_push_td3_goal.yaml"
-    # save_path = "/models/sim/td3_goal/rx200/push/"
-    # log_path = "/logs/sim/td3_goal/rx200/push/"
-    #
-    # # create the model
-    # model = TD3_GOAL(env, save_path, log_path, model_pkg_path=pkg_path,
-    #                  config_file_pkg=pkg_path, config_filename=config_file_name)
-
-    # train the models
+    model = ModelCls(env, save_path, log_path, model_pkg_path=pkg_path,
+                     config_file_pkg=pkg_path, config_filename=cfg)
     model.train()
     model.save_model()
     model.close_env()
+    return 0
 
-    sys.exit()
+
+if __name__ == "__main__":
+    sys.exit(main())

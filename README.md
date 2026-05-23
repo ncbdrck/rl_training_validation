@@ -23,6 +23,9 @@ scripts dispatch off the Gymnasium registry.
 | VX300S (kinect) | Reach | `VX300SReacherSim-v0` | `VX300SReacherGoalSim-v0` | `VX300SReacherReal-v0` | `VX300SReacherGoalReal-v0` |
 | VX300S (kinect) | Push  | `VX300SPushSim-v0` | `VX300SPushGoalSim-v0` | `VX300SPushReal-v0` | `VX300SPushGoalReal-v0` |
 | VX300S (kinect) | PnP   | `VX300SPnPSim-v0` | `VX300SPnPGoalSim-v0` | `VX300SPnPReal-v0` | `VX300SPnPGoalReal-v0` |
+| UR5e + 2F-85   | Reach | `UR5eReacherSim-v0` | `UR5eReacherGoalSim-v0` | `UR5eReacherReal-v0` | `UR5eReacherGoalReal-v0` |
+| UR5e + 2F-85   | Push  | `UR5ePushSim-v0` | `UR5ePushGoalSim-v0` | `UR5ePushReal-v0` | `UR5ePushGoalReal-v0` |
+| UR5e + 2F-85   | PnP   | `UR5ePnPSim-v0` | `UR5ePnPGoalSim-v0` | `UR5ePnPReal-v0` | `UR5ePnPGoalReal-v0` |
 
 PnP envs include `is_grasped` derived obs, grasp-aware layered dense
 reward, and a `multi_goal` flag for an intermediate-lift curriculum.
@@ -47,6 +50,8 @@ for a turnkey AprilTag pipeline.
    - RX200 sim → `reactorx200_description`.
    - VX300S sim → `viperx300s_description`.
    - Ned2 sim → `niryo_ned2_description_extras`.
+   - UR5e sim → `ur5e_description_extras` (wraps upstream UR5e +
+     Robotiq 2F-85, mounts on a 4-legged base next to a cafe-table).
 
    Real envs don't need these — `niryo_robot_bringup` / Interbotix
    driver handle hardware bring-up.
@@ -148,7 +153,27 @@ rosrun rl_training_validation vx300s_pnp_train_sim.py
 rosrun rl_training_validation vx300s_pnp_train_sim.py --goal
 ```
 
-### Real-robot tasks (RX200 / NED2 / VX300S)
+### UR5e sim tasks
+
+UR5e + Robotiq 2F-85 mounted on a 4-legged base next to a cafe-table.
+Optional standalone scene check (no RL env):
+
+```bash
+roslaunch ur5e_description_extras ur5e_gazebo.launch
+```
+
+Training:
+
+```bash
+rosrun rl_training_validation ur5e_reach_train_sim.py
+rosrun rl_training_validation ur5e_reach_train_sim.py --goal
+rosrun rl_training_validation ur5e_push_train_sim.py
+rosrun rl_training_validation ur5e_push_train_sim.py --goal
+rosrun rl_training_validation ur5e_pnp_train_sim.py
+rosrun rl_training_validation ur5e_pnp_train_sim.py --goal
+```
+
+### Real-robot tasks (RX200 / NED2 / VX300S / UR5e)
 
 Real motion is gated by `--allow-real-robot-motion`.
 `check_env_constructable` refuses to build any `...Real-v0` env
@@ -179,11 +204,22 @@ rosrun rl_training_validation ned2_pnp_train_real.py   --allow-real-robot-motion
 rosrun rl_training_validation vx300s_reach_train_real.py --allow-real-robot-motion
 rosrun rl_training_validation vx300s_push_train_real.py  --allow-real-robot-motion
 rosrun rl_training_validation vx300s_pnp_train_real.py   --allow-real-robot-motion
+
+# UR5e — bring up ur_robot_driver + Robotiq driver + MoveIt first
+# (ur5e_description_extras/launch/ur5e_real.launch is the expected
+# wrapper; create it at the lab to suit your network IP + calibration).
+rosrun rl_training_validation ur5e_reach_train_real.py --allow-real-robot-motion
+rosrun rl_training_validation ur5e_push_train_real.py  --allow-real-robot-motion \
+    --cube-tracker auto --cube-tracker-camera kinect2 \
+    --cube-tracker-target-frame base_link
+rosrun rl_training_validation ur5e_pnp_train_real.py   --allow-real-robot-motion \
+    --cube-tracker auto --cube-tracker-camera kinect2 \
+    --cube-tracker-target-frame base_link --multi-goal
 ```
 
-NED2 real envs use the bare `base_link` URDF name (no `ned2/` prefix
-— that's sim-only). Validate scripts mirror train scripts; swap
-`train_real` for `validate_real`.
+NED2 + UR5e real envs use BARE URDF link names (no `ned2/` / `ur5e/`
+prefix — that's sim-only). Validate scripts mirror train scripts;
+swap `train_real` for `validate_real`.
 
 ### Cube tracking on real
 
@@ -238,13 +274,13 @@ src/rl_training_validation/
     env_safety.py            # registry-based env classification + real-motion gate
     multi_task_env.py        # multi-task wrapper used by multi_train_sim
     multi_task_goal_env.py
-  rx200/  ned2/  vx300s/
+  rx200/  ned2/  vx300s/  ur5e/
     reach/  push/  pnp/      # per-task train + validate scripts
   multi_task_learning/
     multi_train_sim.py
 
 config/
-  rx200_*.yaml  ned2_*.yaml  vx300s_*.yaml      # SB3 hyperparams
+  rx200_*.yaml  ned2_*.yaml  vx300s_*.yaml  ur5e_*.yaml  # SB3 hyperparams
 
 scripts/
   list_available_envs.py

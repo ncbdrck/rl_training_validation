@@ -40,7 +40,27 @@ detector of choice for actual cube tracking; see
 [`rl_envs_cube_tracker`](https://github.com/ncbdrck/rl_envs_cube_tracker)
 for a turnkey AprilTag pipeline.
 
-## Prerequisites
+## Easiest install: one-shot script
+
+If you're starting fresh on Ubuntu 20.04, run the bootstrap installer
+that ships in this repo (and identically in every other ecosystem
+repo: UniROS, MultiROS, RealROS, sb3_ros_support, rl_environments).
+It installs ROS Noetic, UniROS (MultiROS + RealROS), sb3_ros_support,
+rl_environments (with all 4 robots' vendor packages + supporting
+description-extras + cube tracker), and this package.
+
+```bash
+git clone https://github.com/ncbdrck/rl_training_validation.git /tmp/uniros_bootstrap
+bash /tmp/uniros_bootstrap/install_uniros_stack.sh                # interactive
+bash /tmp/uniros_bootstrap/install_uniros_stack.sh -y             # unattended
+bash /tmp/uniros_bootstrap/install_uniros_stack.sh -p ~/my_ws -y  # custom path
+```
+
+The script asks once whether to install all components or pick per-
+component; refuses to run on non-Ubuntu-20.04 (Noetic requirement).
+The manual prerequisites below still work for piece-by-piece installs.
+
+## Prerequisites (manual)
 
 1. `rl_environments` — provides the env classes + Gymnasium registrations.
 2. `sb3_ros_support` — <https://github.com/ncbdrck/sb3_ros_support>

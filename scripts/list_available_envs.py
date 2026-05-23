@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-List every RX200 / NED2 / VX300S env id in the ``rl_environments``
+List every RX200 / NED2 / VX300S / UR5e env id in the ``rl_environments``
 Gymnasium registry.
 
 Pure introspection — no Gazebo, no ROS, no hardware. Safe to run from
@@ -47,7 +47,7 @@ def main() -> int:
 
     print(f"\nrl_environments registry — {len(ids)} ids")
     print("=" * 60)
-    for robot in ("rx200", "ned2", "vx300s", "?"):
+    for robot in ("rx200", "ned2", "vx300s", "ur5e", "?"):
         entries = by_robot.get(robot, [])
         if not entries:
             continue

@@ -36,10 +36,10 @@ from multiros.wrappers.time_limit_wrapper import TimeLimitWrapper
 
 ENV_STD  = "NED2ReacherSim-v0"
 ENV_GOAL = "NED2ReacherGoalSim-v0"
-CFG_STD_TD3 = "rx200_reacher_td3.yaml"
-CFG_STD_SAC = "rx200_reacher_sac.yaml"
-CFG_GOAL_TD3 = "rx200_reacher_td3_goal.yaml"
-CFG_GOAL_SAC = "rx200_reacher_sac_goal.yaml"
+CFG_STD_TD3 = "ned2_reacher_td3.yaml"
+CFG_STD_SAC = "ned2_reacher_sac.yaml"
+CFG_GOAL_TD3 = "ned2_reacher_td3_goal.yaml"
+CFG_GOAL_SAC = "ned2_reacher_sac_goal.yaml"
 
 
 def parse_args() -> argparse.Namespace:

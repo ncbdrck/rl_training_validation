@@ -120,6 +120,31 @@ roscore
 rosrun rl_training_validation rx200_reach_train_sim.py
 ```
 
+### Seeds (training + evaluation)
+
+Every train and validate script accepts `--seed N` (default `10`).
+On the train side this is now wired all the way through:
+
+* the env's `np_random` (goal / cube / init sampling),
+* the SB3 learner's RNG (network init, exploration noise, replay /
+  HER minibatch sampling), and
+* the on-disk checkpoint + TensorBoard log directories, which get a
+  `seed_<N>/` suffix plus a `_s<N>_<timestamp>` stamp on
+  `save_prefix` / `trained_model_name` / `log_folder`.
+
+So `--seed 1`, `--seed 2`, `--seed 3` produces three genuinely
+independent runs that land in their own directories without
+clobbering each other. (Earlier revisions only seeded the env; the
+SB3 learner was pinned to the YAML default of 10 and re-runs aborted
+on the duplicate log folder.)
+
+Validate scripts additionally accept `--eval-seed N` (default `1000`).
+`--seed` continues to pick which trained-policy directory to load
+(`seed_<N>/`), and `--eval-seed` drives the *evaluation env's* RNG —
+so the rollout goals are sampled from a stream disjoint from the one
+the policy was trained on, making the reported success rate a
+generalization estimate rather than a memorization check.
+
 ### RX200 sim tasks
 
 ```bash
@@ -208,6 +233,15 @@ When the flag is passed, the helper exports
 `ALLOW_REAL_ROBOT_MOTION=1` so subprocess workers can read the same
 consent.
 
+Every real task env additionally defaults `reset_env_prompt=True`,
+so the first `env.reset()` (which homes the arm via MoveIt, and for
+PnP closes the gripper) pauses for an `input()` confirmation before
+moving the hardware. Pressing Enter continues the run; Ctrl-C cleanly
+aborts. For unattended runs (CI, overnight sweeps, headless boxes)
+pass `reset_env_prompt=False` through the env constructor — e.g. via
+your own train script that builds `env_kwargs` — to opt out of the
+prompt while keeping the rest of the safety gating in place.
+
 ```bash
 # RX200 — reach (no cube), push, pnp
 rosrun rl_training_validation rx200_reach_train_real.py --allow-real-robot-motion
@@ -283,14 +317,26 @@ Calibrate the camera extrinsic before relying on
 ### Validate
 
 ```bash
-# Sim
+# Sim — held-out eval seed disjoint from the training --seed
 rosrun rl_training_validation rx200_reach_validate_sim.py --episodes 20
-rosrun rl_training_validation vx300s_reach_validate_sim.py --episodes 20
+rosrun rl_training_validation vx300s_reach_validate_sim.py --episodes 20 --seed 10 --eval-seed 1000
+
+# Sim pnp — pass the same task-variant flags you trained with so the
+# evaluator runs the matching curriculum, not a sibling variant
+rosrun rl_training_validation rx200_pnp_validate_sim.py --episodes 20 --goal --multi-goal
+rosrun rl_training_validation vx300s_pnp_validate_sim.py --episodes 20 --goal --multi-goal --no-realtime
 
 # Real
 rosrun rl_training_validation rx200_push_validate_real.py --episodes 10 --allow-real-robot-motion
 rosrun rl_training_validation rx200_pnp_validate_real.py  --episodes 10 --allow-real-robot-motion --goal --multi-goal
 ```
+
+The pnp sim validate scripts (`rx200`, `ur5e`, `vx300s`) accept the
+same `--multi-goal` / `--no-realtime` flags as their train
+counterparts; without them a policy trained with the intermediate-
+lift curriculum would be evaluated on the simpler single-goal
+variant and the reported success rate would not correspond to the
+trained task.
 
 ## Repository layout
 

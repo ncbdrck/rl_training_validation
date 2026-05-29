@@ -166,27 +166,60 @@ class MultiTaskGoalEnv(gymnasium_robotics.GoalEnv):
         self,
         achieved_goal: np.ndarray,
         desired_goal: np.ndarray,
-        info: dict,
-    ) -> float:
+        info,
+    ):
         """
         Called by HER to recompute rewards when relabelling experience.
 
-        HER batches transitions from possibly-different sub-envs; the
-        "currently active" sub-env at recompute time may not be the
-        same as the sub-env that produced the transition. We therefore
-        route by ``info["task_id"]`` (stamped at reset() and step()
-        time) rather than ``self.current_env``.
+        Two call shapes have to be supported:
 
-        Falls back to ``self.current_env`` if task_id is missing from
-        ``info`` (e.g. info dict was constructed by hand for a
-        single-task test). This is a best-effort fallback; for HER
-        correctness, ``info["task_id"]`` should be present.
+          * Live step / single transition:
+            ``info`` is a ``dict``; ``ag`` / ``dg`` are 1-D arrays.
+            Route by ``info["task_id"]`` (stamped at reset() and step()
+            time) so a relabel for sub-env i is computed by sub-env i,
+            not whichever sub-env happens to be ``current_env`` now.
+
+          * HER batched relabel:
+            ``info`` is a Python list / ndarray of per-transition info
+            dicts (SB3 HER ``copy_info_dict=False`` passes a list).
+            Group transitions by ``info["task_id"]`` and let each
+            sub-env compute its slice, then scatter the per-slice
+            rewards back into a single float32 array shaped like
+            ``ag.shape[:-1]``. Without this, the previous
+            ``isinstance(info, dict)`` check failed on the list path
+            and silently routed every transition through
+            ``self.current_env``.
+
+        Falls back to ``self.current_env`` when ``task_id`` is missing
+        from ``info`` (e.g. a single-task unit test that constructs
+        ``info`` by hand). The fallback may misroute under HER if the
+        active sub-env has changed since the transition was collected
+        — preserve ``task_id`` through the replay buffer to avoid it.
         """
-        task_id = info.get("task_id") if isinstance(info, dict) else None
-        if task_id is None:
-            # Backwards-compat fallback for callers who don't preserve
-            # task_id through replay. May silently misroute under HER
-            # if the active sub-env has changed since the transition
-            # was collected.
-            return self.current_env.compute_reward(achieved_goal, desired_goal, info)
-        return self.env_list[task_id].compute_reward(achieved_goal, desired_goal, info)
+        # Single-transition path: dict info, 1-D arrays.
+        if isinstance(info, dict):
+            task_id = info.get("task_id")
+            if task_id is None:
+                return self.current_env.compute_reward(achieved_goal, desired_goal, info)
+            return self.env_list[task_id].compute_reward(achieved_goal, desired_goal, info)
+
+        # Batched relabel path: list / ndarray of info dicts.
+        ag = np.asarray(achieved_goal)
+        dg = np.asarray(desired_goal)
+        n = len(info)
+        rewards = np.zeros(n, dtype=np.float32)
+
+        # Group indices by task_id so each sub-env processes its slice
+        # in one call (sub-envs already support batched ag/dg/info).
+        per_task = {}
+        for idx, item in enumerate(info):
+            tid = item.get("task_id") if isinstance(item, dict) else None
+            per_task.setdefault(tid, []).append(idx)
+
+        for tid, idxs in per_task.items():
+            sub_env = self.current_env if tid is None else self.env_list[tid]
+            slice_info = [info[i] for i in idxs]
+            slice_reward = sub_env.compute_reward(ag[idxs], dg[idxs], slice_info)
+            rewards[idxs] = np.asarray(slice_reward, dtype=np.float32)
+
+        return rewards

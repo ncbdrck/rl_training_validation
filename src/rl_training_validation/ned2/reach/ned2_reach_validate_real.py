@@ -45,6 +45,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--goal", action="store_true")
     p.add_argument("--algo", default="td3", choices=("td3", "sac"))
     p.add_argument("--seed", type=int, default=10)
+    p.add_argument("--eval-seed", type=int, default=1000,
+                   help="RNG seed for the evaluation env, independent of --seed "
+                        "(which selects the trained-policy directory). Picking a "
+                        "value far from the training --seed ensures evaluation "
+                        "goals are sampled from a held-out stream rather than the "
+                        "same distribution the policy was trained on.")
     p.add_argument("--max-episode-steps", type=int, default=100)
     p.add_argument("--episodes", type=int, default=10)
     p.add_argument("--model-tag", default="trained_model")
@@ -55,6 +61,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    rospy.loginfo(f"[validate] model_seed={args.seed} eval_seed={args.eval_seed}")
     env_id = ENV_GOAL if args.goal else ENV_STD
     check_env_constructable(env_id, allow_real_flag=args.allow_real_robot_motion)
 
@@ -80,7 +87,7 @@ def main() -> int:
         )
 
     env_kwargs = dict(
-        seed=args.seed,
+        seed=args.eval_seed,
         delta_action=True,
         ee_action_type=False,
         use_smoothing=False,

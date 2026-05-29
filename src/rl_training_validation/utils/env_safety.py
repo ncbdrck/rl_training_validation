@@ -65,10 +65,20 @@ def is_goal_env(env_id: str) -> bool:
 
 
 def list_implemented() -> List[str]:
+    """List the registered task-env ids (one per documented task).
+
+    Filters out the abstract robot-base registrations (e.g.
+    ``RX200RobotEnv-v0``, ``NED2RobotGoalBaseSimEnv-v0``,
+    ``VX300SRobotGoalBaseRealEnv-v0``). Those are class-only entries
+    used to share an env class across multiple task envs — they are
+    not ``gym.make``-able tasks and should not appear in user-facing
+    "available envs" listings.
+    """
     gym = _import_gym()
     return sorted(
         s for s in gym.envs.registry
         if any(s.startswith(p) for p in _ROBOT_PREFIXES)
+        and "Robot" not in s
     )
 
 
@@ -327,6 +337,11 @@ def parse_env_id(env_id: str):
     """Return ``(robot, mode, task, is_goal)`` or None.
 
     Parses bare ids like ``RX200PushGoalSim-v0`` / ``NED2ReacherReal-v0``.
+    Also accepts the ``Zed2``-flavoured RX200 ids (e.g.
+    ``RX200Zed2PnPGoalSim-v0``); the implicit (no-prefix) kinect
+    variants fall through the empty-prefix branch so callers don't need
+    to special-case the default sensor. Verified to round-trip every
+    currently-registered task id without returning ``None``.
     """
     if not env_id.endswith("-v0"):
         return None

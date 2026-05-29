@@ -34,38 +34,40 @@ def _import_gym():
     return gym
 
 
-# Ids that MUST be registered today. Keep this in lockstep with
-# rl_environments/src/rl_environments/__init__.py.
-EXPECTED_IDS = {
-    # RX200 reach (kinect + zed2)
-    "RX200ReacherSim-v0", "RX200ReacherGoalSim-v0",
-    "RX200Zed2ReacherSim-v0", "RX200Zed2ReacherGoalSim-v0",
-    # RX200 push (kinect + zed2)
-    "RX200PushSim-v0", "RX200PushGoalSim-v0",
-    "RX200Zed2PushSim-v0", "RX200Zed2PushGoalSim-v0",
-    # RX200 PnP (kinect + zed2)
-    "RX200PnPSim-v0", "RX200PnPGoalSim-v0",
-    "RX200Zed2PnPSim-v0", "RX200Zed2PnPGoalSim-v0",
-    # Ned2 reach (kinect)
-    "NED2ReacherSim-v0", "NED2ReacherGoalSim-v0",
-    # Ned2 push (kinect) — new this session
-    "NED2PushSim-v0", "NED2PushGoalSim-v0",
-    # Ned2 PnP (kinect) — new this session
-    "NED2PnPSim-v0", "NED2PnPGoalSim-v0",
-    # RX200 real reach
-    "RX200ReacherReal-v0", "RX200ReacherGoalReal-v0",
-    # Ned2 real reach — new this session
-    "NED2ReacherReal-v0", "NED2ReacherGoalReal-v0",
-    # Ned2 real push + pnp — new this session
-    "NED2PushReal-v0", "NED2PushGoalReal-v0",
-    "NED2PnPReal-v0", "NED2PnPGoalReal-v0",
-    # RX200 real push + pnp (cube tracking via /cube_pose topic)
-    "RX200PushReal-v0", "RX200PushGoalReal-v0",
-    "RX200PnPReal-v0", "RX200PnPGoalReal-v0",
-    # VX300S reach (kinect)
-    "VX300SReacherSim-v0", "VX300SReacherGoalSim-v0",
-    "VX300SReacherReal-v0", "VX300SReacherGoalReal-v0",
-}
+def _expected_ids() -> set:
+    """Derive the expected task-env id set from the authoritative
+    ``ALL_*_NAMES`` manifests in ``rl_environments/__init__.py``.
+
+    Reading the manifest directly (instead of duplicating it here) keeps
+    the smoke test in lock-step when ids are added or renamed there, so
+    a drift between the manifest and the registry shows up as a real
+    test failure rather than being masked by a stale local copy.
+    """
+    import rl_environments  # noqa: F401  triggers registration + exports manifests
+    ids = set()
+    for attr in ("ALL_REACH_SIM_NAMES", "ALL_PUSH_SIM_NAMES", "ALL_PNP_SIM_NAMES",
+                 "ALL_REACH_REAL_NAMES", "ALL_PUSH_REAL_NAMES", "ALL_PNP_REAL_NAMES"):
+        ids.update(getattr(rl_environments, attr))
+    return ids
+
+
+def _registered_task_ids(gym) -> set:
+    """Registry ids that look like our task ids (one of the four robot
+    prefixes + ``-v0``). Filters out the abstract robot-base ids
+    (e.g. ``RX200RobotGoalEnv-v0``) so the symmetry check below
+    compares like-for-like task ids only."""
+    robot_prefixes = ("RX200", "NED2", "VX300S", "UR5e")
+    ours = set()
+    for eid in gym.envs.registry.keys():
+        if not eid.endswith("-v0"):
+            continue
+        if not any(eid.startswith(p) for p in robot_prefixes):
+            continue
+        # Drop the abstract robot-base registrations.
+        if "Robot" in eid:
+            continue
+        ours.add(eid)
+    return ours
 
 
 def test_imports() -> int:
@@ -75,12 +77,17 @@ def test_imports() -> int:
     except Exception as e:
         print(f"  FAIL: import error: {e}")
         return 1
-    registered = set(gym.envs.registry.keys())
-    missing = EXPECTED_IDS - registered
-    if missing:
-        print(f"  FAIL: missing from registry: {sorted(missing)}")
+    expected = _expected_ids()
+    registered = _registered_task_ids(gym)
+    missing = expected - registered
+    extra = registered - expected
+    if missing or extra:
+        if missing:
+            print(f"  FAIL: missing from registry: {sorted(missing)}")
+        if extra:
+            print(f"  FAIL: registered but not in ALL_*_NAMES: {sorted(extra)}")
         return 1
-    print(f"  ok: all {len(EXPECTED_IDS)} expected ids registered")
+    print(f"  ok: all {len(expected)} task ids registered (and no extras)")
     return 0
 
 

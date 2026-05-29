@@ -43,6 +43,13 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--episodes", type=int, default=20)
     p.add_argument("--gazebo-gui", action="store_true")
     p.add_argument("--model-tag", default="trained_model")
+    p.add_argument("--multi-goal", action="store_true",
+                   help="Match the train script's intermediate-lift "
+                        "goal curriculum so a policy trained with "
+                        "--multi-goal is evaluated on the same task variant.")
+    p.add_argument("--no-realtime", action="store_true",
+                   help="Use the standard MDP pause-step-resume loop "
+                        "(match the train script when it was passed --no-realtime).")
     add_real_motion_cli(p)
     return p.parse_args()
 
@@ -63,6 +70,8 @@ def main() -> int:
         action_speed=0.100,
         log_internal_state=False,
         reward_type="Sparse" if args.goal else "Dense",
+        multi_goal=args.multi_goal,
+        realtime_mode=not args.no_realtime,
     )
     env = gym.make(env_id, **env_kwargs)
     env = NormalizeActionWrapper(env)

@@ -251,6 +251,23 @@ def apply_goal_pose_kwargs(env_kwargs: dict, args: argparse.Namespace) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Seed-aware path helpers
+# ---------------------------------------------------------------------------
+
+def with_seed_suffix(path: str, seed: int) -> str:
+    """Append ``seed_<N>/`` to a save / log path.
+
+    Keeps runs trained with different seeds in separate directories so
+    a later run does not silently overwrite (or load from) a previous
+    seed's checkpoints. The trailing slash is preserved when present
+    in the input path.
+    """
+    if path.endswith("/"):
+        return f"{path}seed_{seed}/"
+    return f"{path}/seed_{seed}/"
+
+
+# ---------------------------------------------------------------------------
 # Combined "is this env safe to construct now?" check
 # ---------------------------------------------------------------------------
 

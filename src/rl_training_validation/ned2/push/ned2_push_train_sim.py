@@ -36,7 +36,7 @@ import rl_environments  # noqa: F401  trigger registration
 
 from rl_training_validation.utils.env_safety import (
     add_real_motion_cli, add_wrist_camera_cli, apply_wrist_camera_kwargs,
-    check_env_constructable, is_goal_env,
+    check_env_constructable, is_goal_env, with_seed_suffix,
 )
 
 from sb3_ros_support.td3 import TD3
@@ -111,8 +111,11 @@ def main() -> int:
         log_path  = "/logs/sim/td3/ned2/push/"
         ModelCls = TD3
 
+    save_path = with_seed_suffix(save_path, args.seed)
+    log_path = with_seed_suffix(log_path, args.seed)
     model = ModelCls(env, save_path, log_path, model_pkg_path=pkg_path,
-                     config_file_pkg=pkg_path, config_filename=cfg)
+                     config_file_pkg=pkg_path, config_filename=cfg,
+                     seed=args.seed)
     model.train()
     model.save_model()
     model.close_env()

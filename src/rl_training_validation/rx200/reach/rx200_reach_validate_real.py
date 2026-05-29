@@ -18,7 +18,7 @@ import uniros as gym  # paper §6.1: subprocess-isolated env proxy; drop-in for 
 import rl_environments  # noqa: F401  trigger registration
 
 from rl_training_validation.utils.env_safety import (
-    add_real_motion_cli, check_env_constructable, is_goal_env,
+    add_real_motion_cli, check_env_constructable, is_goal_env, with_seed_suffix,
 )
 
 from sb3_ros_support.sac import SAC
@@ -71,6 +71,7 @@ def main() -> int:
             cfg = "rx200_reacher_sac.yaml"
             base = "/models/real/sac/rx200/reach/"
             ModelCls = SAC
+    base = with_seed_suffix(base, args.seed)
     rel_model_path = base + args.model_tag
     abs_model_path = rospkg.RosPack().get_path(pkg_path) + rel_model_path
     if not os.path.exists(abs_model_path + ".zip"):

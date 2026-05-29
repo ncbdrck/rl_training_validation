@@ -23,7 +23,7 @@ import rl_environments  # noqa: F401  trigger registration
 
 from rl_training_validation.utils.env_safety import (
     add_cube_tracker_cli, add_real_motion_cli, apply_cube_tracker_kwargs,
-    check_env_constructable, is_goal_env,
+    check_env_constructable, is_goal_env, with_seed_suffix,
 )
 
 from sb3_ros_support.td3 import TD3
@@ -42,6 +42,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--goal", action="store_true")
     p.add_argument("--episodes", type=int, default=10)
+    p.add_argument("--seed", type=int, default=10)
     p.add_argument("--max-episode-steps", type=int, default=100)
     p.add_argument("--multi-goal", action="store_true")
     p.add_argument("--cube-pose-topic", default="/cube_pose")
@@ -67,6 +68,7 @@ def main() -> int:
         base = "/models/real/td3/vx300s/pnp/"
         ModelCls = TD3
         cfg = "vx300s_pnp_td3.yaml"
+    base = with_seed_suffix(base, args.seed)
     rel_model_path = base + args.model_tag
     abs_model_path = rospkg.RosPack().get_path(pkg_path) + rel_model_path
     if not os.path.exists(abs_model_path + ".zip"):

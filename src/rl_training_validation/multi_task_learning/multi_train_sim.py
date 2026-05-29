@@ -22,7 +22,7 @@ from stable_baselines3.common.env_util import make_vec_env
 import rl_environments  # noqa: F401  trigger registration
 
 from rl_training_validation.utils.env_safety import (
-    check_env_constructable, is_real, list_implemented,
+    check_env_constructable, is_real, list_implemented, with_seed_suffix,
 )
 from rl_training_validation.utils.multi_task_env import MultiTaskEnv
 
@@ -58,20 +58,21 @@ def main() -> int:
             return 1
         check_env_constructable(eid, allow_real_flag=False)
 
-    env_args = {
-        eid: dict(
-            gazebo_gui=False,
-            ee_action_type=False,
-            seed=args.seed,
-            delta_action=True,
-            environment_loop_rate=10.0,
-            action_cycle_time=0.600,
-            use_smoothing=False,
-            action_speed=0.100,
-            reward_type="Dense",
-        )
-        for eid in args.envs
-    }
+    # MultiTaskEnv expects a list of kwarg dicts aligned positionally with
+    # the env-id list; building one shared dict per env keeps every sub-env
+    # on the same realtime / wrapping settings.
+    shared_env_kwargs = dict(
+        gazebo_gui=False,
+        ee_action_type=False,
+        seed=args.seed,
+        delta_action=True,
+        environment_loop_rate=10.0,
+        action_cycle_time=0.600,
+        use_smoothing=False,
+        action_speed=0.100,
+        reward_type="Dense",
+    )
+    env_args = [dict(shared_env_kwargs) for _ in args.envs]
     wrapper_list = ["NormalizeActionWrapper", "NormalizeObservationWrapper", "TimeLimitWrapper"]
     wrapper_args = {
         "NormalizeActionWrapper": {},
@@ -86,8 +87,11 @@ def main() -> int:
     save_path = "/models/sim/td3/multi/"
     log_path = "/logs/sim/td3/multi/"
 
+    save_path = with_seed_suffix(save_path, args.seed)
+    log_path = with_seed_suffix(log_path, args.seed)
     model = TD3(vec_env, save_path, log_path, model_pkg_path=pkg_path,
-                config_file_pkg=pkg_path, config_filename=args.config)
+                config_file_pkg=pkg_path, config_filename=args.config,
+                seed=args.seed)
     model.train()
     model.save_model()
     model.close_env()

@@ -19,7 +19,7 @@ import rl_environments  # noqa: F401  trigger registration
 
 from rl_training_validation.utils.env_safety import (
     add_real_motion_cli, add_wrist_camera_cli, apply_wrist_camera_kwargs,
-    check_env_constructable, is_goal_env,
+    check_env_constructable, is_goal_env, with_seed_suffix,
 )
 
 from sb3_ros_support.sac import SAC
@@ -89,6 +89,7 @@ def main() -> int:
         cfg = CFG_STD_TD3 if args.algo == "td3" else CFG_STD_SAC
         base = "/models/sim/td3/ned2/reach/" if args.algo == "td3" else "/models/sim/sac/ned2/reach/"
         ModelCls = TD3 if args.algo == "td3" else SAC
+    base = with_seed_suffix(base, args.seed)
     model_path = base + args.model_tag
     model = ModelCls.load_trained_model(model_path=model_path, model_pkg=pkg_path,
                                         config_filename=cfg, env=env)

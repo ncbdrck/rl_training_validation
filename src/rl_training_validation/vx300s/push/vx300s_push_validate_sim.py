@@ -18,7 +18,7 @@ import uniros as gym  # paper §6.1: subprocess-isolated env proxy; drop-in for 
 import rl_environments  # noqa: F401  trigger registration
 
 from rl_training_validation.utils.env_safety import (
-    add_real_motion_cli, check_env_constructable, is_goal_env,
+    add_real_motion_cli, check_env_constructable, is_goal_env, with_seed_suffix,
 )
 
 from sb3_ros_support.td3 import TD3
@@ -81,6 +81,7 @@ def main() -> int:
         cfg = CFG_STD
         base = "/models/sim/td3/vx300s/push/"
         ModelCls = TD3
+    base = with_seed_suffix(base, args.seed)
     model_path = base + args.model_tag
     model = ModelCls.load_trained_model(model_path=model_path, model_pkg=pkg_path,
                                         config_filename=cfg, env=env)

@@ -30,7 +30,7 @@ import uniros as gym  # paper §6.1: subprocess-isolated env proxy; drop-in for 
 import rl_environments  # noqa: F401  trigger registration
 
 from rl_training_validation.utils.env_safety import (
-    add_real_motion_cli, check_env_constructable, is_goal_env,
+    add_real_motion_cli, check_env_constructable, is_goal_env, with_seed_suffix,
 )
 
 from sb3_ros_support.sac import SAC
@@ -92,27 +92,39 @@ def main() -> int:
             config_file_name = "rx200_reacher_td3_goal.yaml"
             save_path = "/models/real/td3_goal/rx200/reach/"
             log_path = "/logs/real/td3_goal/rx200/reach/"
+            save_path = with_seed_suffix(save_path, args.seed)
+            log_path = with_seed_suffix(log_path, args.seed)
             model = TD3_GOAL(env, save_path, log_path, model_pkg_path=pkg_path,
-                             config_file_pkg=pkg_path, config_filename=config_file_name)
+                             config_file_pkg=pkg_path, config_filename=config_file_name,
+                             seed=args.seed)
         else:
             config_file_name = "rx200_reacher_sac_goal.yaml"
             save_path = "/models/real/sac_goal/rx200/reach/"
             log_path = "/logs/real/sac_goal/rx200/reach/"
+            save_path = with_seed_suffix(save_path, args.seed)
+            log_path = with_seed_suffix(log_path, args.seed)
             model = SAC_GOAL(env, save_path, log_path, model_pkg_path=pkg_path,
-                             config_file_pkg=pkg_path, config_filename=config_file_name)
+                             config_file_pkg=pkg_path, config_filename=config_file_name,
+                             seed=args.seed)
     else:
         if args.algo == "td3":
             config_file_name = "rx200_reacher_td3.yaml"
             save_path = "/models/real/td3/rx200/reach/"
             log_path = "/logs/real/td3/rx200/reach/"
+            save_path = with_seed_suffix(save_path, args.seed)
+            log_path = with_seed_suffix(log_path, args.seed)
             model = TD3(env, save_path, log_path, model_pkg_path=pkg_path,
-                        config_file_pkg=pkg_path, config_filename=config_file_name)
+                        config_file_pkg=pkg_path, config_filename=config_file_name,
+                        seed=args.seed)
         else:
             config_file_name = "rx200_reacher_sac.yaml"
             save_path = "/models/real/sac/rx200/reach/"
             log_path = "/logs/real/sac/rx200/reach/"
+            save_path = with_seed_suffix(save_path, args.seed)
+            log_path = with_seed_suffix(log_path, args.seed)
             model = SAC(env, save_path, log_path, model_pkg_path=pkg_path,
-                        config_file_pkg=pkg_path, config_filename=config_file_name)
+                        config_file_pkg=pkg_path, config_filename=config_file_name,
+                        seed=args.seed)
 
     model.train()
     model.save_model()

@@ -1,0 +1,29 @@
+# Python dependencies for the rl_training_validation package.
+#
+# Install with:
+#   python3 -m pip install -r requirements.txt
+#
+# Pins match the rest of the framework stack
+# (rl_environments / sb3_ros_support) so the env classes, the SB3
+# learners and the wrappers all agree on the same Gymnasium / NumPy
+# API surface. ROS Noetic dependencies (rospy, rospkg, ...) are
+# installed system-wide via apt and are NOT listed here.
+
+# RL API + goal-env helpers (HER replay buffer needs the
+# gymnasium-robotics ``GoalEnv`` contract).
+gymnasium==0.29.1
+gymnasium-robotics==1.2.4
+
+# SB3 learners. 2.x flipped HER's compute_reward argument order
+# (achieved, desired) — the framework wrappers are written for
+# that order, so 2.x is required.
+stable-baselines3==2.2.1
+
+# Torch and TensorBoard for SB3.
+torch>=2.1.0
+tensorboard
+
+# Misc utilities used by the train / validate / multi-task scripts.
+numpy==1.23.3
+pyyaml
+fsspec==2023.12.2

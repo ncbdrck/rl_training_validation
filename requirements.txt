@@ -26,4 +26,3 @@ tensorboard
 # Misc utilities used by the train / validate / multi-task scripts.
 numpy==1.23.3
 pyyaml
-fsspec==2023.12.2

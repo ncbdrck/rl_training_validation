@@ -43,7 +43,7 @@ from typing import List
 REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
 
-# Use uniros.make (paper §6.1) rather than gymnasium.make. uniros.make
+# Use uniros.make rather than gymnasium.make. uniros.make
 # returns a GymProxy that runs the env in a subprocess and exposes the
 # standard gym.Env surface (reset / step / close / action_space /
 # observation_space). The subprocess isolation matters here: if an env

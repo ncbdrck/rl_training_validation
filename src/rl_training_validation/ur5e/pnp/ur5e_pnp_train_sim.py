@@ -15,7 +15,7 @@ import sys
 
 import rospy
 # import gymnasium as gym  # uncomment + comment uniros below to test against vanilla Gymnasium
-import uniros as gym  # paper §6.1: subprocess-isolated env proxy; drop-in for gym.Env
+import uniros as gym  # subprocess-isolated env proxy; drop-in for gym.Env
 
 import rl_environments  # noqa: F401  trigger registration
 
@@ -49,7 +49,7 @@ def parse_args() -> argparse.Namespace:
                    help="Enable the intermediate-lift goal curriculum.")
     p.add_argument("--no-realtime", action="store_true",
                    help="Use the standard MDP pause-step-resume loop instead "
-                        "of the paper §7 real-time loop.")
+                        "of the real-time loop.")
     add_real_motion_cli(p)
     return p.parse_args()
 

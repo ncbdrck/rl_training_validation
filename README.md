@@ -4,8 +4,13 @@ Train / validate the Gymnasium environments registered by
 [rl_environments](https://github.com/ncbdrck/rl_environments) using
 Stable Baselines3 + [sb3_ros_support](https://github.com/ncbdrck/sb3_ros_support).
 
-Every env that `rl_environments` registers is runnable here — the
-scripts dispatch off the Gymnasium registry.
+Every env that `rl_environments` registers is **wired up** here — the
+scripts dispatch off the Gymnasium registry. End-to-end validation
+coverage is uneven, however: RX200 reach (sim + real) is the most
+exercised path; the other (robot × task) combinations are registered,
+configured, and statically smoke-tested but have not been trained to
+convergence yet — treat their scripts as starting points rather than
+production runs.
 
 ## Registered envs
 

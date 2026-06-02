@@ -67,6 +67,8 @@ def main() -> int:
 
     env_kwargs = dict(
         seed=args.seed,
+        environment_loop_rate=10.0,
+        action_cycle_time=0.500,
         delta_action=True,
         ee_action_type=False,
         use_smoothing=False,

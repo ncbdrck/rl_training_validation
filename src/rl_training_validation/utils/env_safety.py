@@ -7,8 +7,9 @@ Pure registry-based: an env is "available" iff it's registered in the
 Gymnasium registry (after ``import rl_environments``). No separate
 implementation-status table — the registry IS the source of truth.
 
-Goal-env detection is by id suffix (``...Goal*-v0``); real-env detection
-is by id suffix (``...Real-v0``).
+Goal-env detection is by id suffix (``...Goal*Sim-v0/v1`` or
+``...Goal*Real-v0/v1``); real-env detection is by id suffix
+(``...Real-v0/v1``).
 
 Nothing in this module touches Gazebo or any ROS topic.
 """
@@ -60,8 +61,12 @@ def is_real(env_id: str) -> bool:
 
 
 def is_goal_env(env_id: str) -> bool:
-    # Matches both ...GoalSim-v0 and ...GoalReal-v0.
-    return "Goal" in env_id and (env_id.endswith("Sim-v0") or env_id.endswith("Real-v0"))
+    # Matches ...GoalSim and ...GoalReal across v0 / v1 (so a future
+    # bumped version doesn't silently downgrade to non-goal handling).
+    return "Goal" in env_id and (
+        env_id.endswith("Sim-v0") or env_id.endswith("Sim-v1")
+        or env_id.endswith("Real-v0") or env_id.endswith("Real-v1")
+    )
 
 
 def list_implemented() -> List[str]:

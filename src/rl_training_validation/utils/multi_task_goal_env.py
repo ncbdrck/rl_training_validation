@@ -199,9 +199,18 @@ class MultiTaskGoalEnv(gymnasium_robotics.GoalEnv):
         # Single-transition path: dict info, 1-D arrays.
         if isinstance(info, dict):
             task_id = info.get("task_id")
-            if task_id is None:
-                return self.current_env.compute_reward(achieved_goal, desired_goal, info)
-            return self.env_list[task_id].compute_reward(achieved_goal, desired_goal, info)
+            sub_env = self.current_env if task_id is None else self.env_list[task_id]
+            # Strip the zero-padding (step()/reset() pad sub-env goals up
+            # to the unified max dim). Without this, sub-envs with a
+            # smaller native goal dim see padded zeros in the trailing
+            # slots, polluting distance / success thresholds.
+            ag_dim = sub_env.observation_space["achieved_goal"].shape[0]
+            dg_dim = sub_env.observation_space["desired_goal"].shape[0]
+            return sub_env.compute_reward(
+                achieved_goal[..., :ag_dim],
+                desired_goal[..., :dg_dim],
+                info,
+            )
 
         # Batched relabel path: list / ndarray of info dicts.
         ag = np.asarray(achieved_goal)
@@ -218,8 +227,16 @@ class MultiTaskGoalEnv(gymnasium_robotics.GoalEnv):
 
         for tid, idxs in per_task.items():
             sub_env = self.current_env if tid is None else self.env_list[tid]
+            ag_dim = sub_env.observation_space["achieved_goal"].shape[0]
+            dg_dim = sub_env.observation_space["desired_goal"].shape[0]
             slice_info = [info[i] for i in idxs]
-            slice_reward = sub_env.compute_reward(ag[idxs], dg[idxs], slice_info)
+            # Slice off the padded slots so the sub-env's distance/threshold
+            # only sees its native goal components.
+            slice_reward = sub_env.compute_reward(
+                ag[idxs][..., :ag_dim],
+                dg[idxs][..., :dg_dim],
+                slice_info,
+            )
             rewards[idxs] = np.asarray(slice_reward, dtype=np.float32)
 
         return rewards
